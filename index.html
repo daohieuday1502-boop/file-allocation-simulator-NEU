@@ -1,29 +1,138 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>File Allocation Simulator</title>
-  <link rel="stylesheet" href="css/style.css">
+
+  <link
+    rel="stylesheet"
+    href="css/style.css"
+  >
 </head>
 
 <body>
 
-  <h1>File Allocation Simulator</h1>
+  <main class="app">
 
-  <p>
-    Simulation of Contiguous, Linked and Indexed File Allocation methods.
-  </p>
+    <h1>File Allocation Simulator</h1>
 
-  <h2>Project Status</h2>
+    <p>
+      Simulation of Contiguous, Linked and Indexed
+      File Allocation methods.
+    </p>
 
-  <p>Version 0.1 - Project initialized.</p>
-  <section>
-    <h2>Virtual Disk</h2>
-    <div id="disk-container"></div>
-  </section>
-  
-  <script type="module" src="js/app.js"></script>
+    <section class="panel">
+
+      <h2>1. Select Test File</h2>
+
+      <select id="file-select"></select>
+
+      <div
+        id="file-info"
+        class="info-box"
+      ></div>
+
+    </section>
+
+
+    <section class="panel">
+
+      <h2>2. Select Allocation Method</h2>
+
+      <label>
+        <input
+          type="radio"
+          name="allocation-method"
+          value="CONTIGUOUS"
+          checked
+        >
+        Contiguous Allocation
+      </label>
+
+      <label>
+        <input
+          type="radio"
+          name="allocation-method"
+          value="LINKED"
+        >
+        Linked Allocation
+      </label>
+
+      <label>
+        <input
+          type="radio"
+          name="allocation-method"
+          value="INDEXED"
+        >
+        Indexed Allocation
+      </label>
+
+      <div class="buttons">
+
+        <button id="allocate-button">
+          Allocate File
+        </button>
+
+        <button id="reset-button">
+          Reset Simulator
+        </button>
+
+      </div>
+
+      <div id="message"></div>
+
+    </section>
+
+
+    <section class="panel">
+
+      <h2>3. Virtual Disk</h2>
+
+      <div id="disk-stats"></div>
+
+      <div id="disk-container"></div>
+
+    </section>
+
+
+    <section class="panel">
+
+      <h2>Allocation Details</h2>
+
+      <div
+        id="allocation-details"
+        class="info-box"
+      >
+        No file allocated yet.
+      </div>
+
+    </section>
+
+
+    <section class="panel">
+
+      <h2>Files Currently on Disk</h2>
+
+      <div id="file-list">
+        No files allocated yet.
+      </div>
+
+    </section>
+
+  </main>
+
+  <script
+    type="module"
+    src="js/app.js?v=4"
+  ></script>
 
 </body>
+
 </html>
