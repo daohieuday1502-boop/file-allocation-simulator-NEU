@@ -1,41 +1,54 @@
 // Indexed Allocation algorithm
 import { getFreeBlocks } from "../core/disk.js";
 
-export function allocateLinked(file, disk) {
-  const needed = file.requiredDataBlocks;
+export function allocateIndexed(file, disk) {
+  const neededDataBlocks = file.requiredDataBlocks;
+
+  // Indexed Allocation cần:
+  // 1 Index Block + các Data Blocks
+  const totalBlocksNeeded = neededDataBlocks + 1;
 
   const freeBlocks = getFreeBlocks(disk);
 
-  if (freeBlocks.length < needed) {
+  if (freeBlocks.length < totalBlocksNeeded) {
     return {
       success: false,
       message:
-        "Linked Allocation failed: not enough free blocks."
+        "Indexed Allocation failed: not enough free blocks for index + data."
     };
   }
 
-  const selectedBlocks = freeBlocks.slice(0, needed);
+  const indexBlock = freeBlocks[0];
 
-  selectedBlocks.forEach((block, index) => {
+  const dataBlocks = freeBlocks.slice(
+    1,
+    neededDataBlocks + 1
+  );
+
+  const dataBlockIds = dataBlocks.map(
+    (block) => block.id
+  );
+
+  // Index Block
+  indexBlock.status = "USED";
+  indexBlock.fileId = file.id;
+  indexBlock.kind = "INDEX";
+  indexBlock.indexEntries = dataBlockIds;
+
+  // Data Blocks
+  dataBlocks.forEach((block) => {
     block.status = "USED";
     block.fileId = file.id;
     block.kind = "DATA";
-
-    if (index < selectedBlocks.length - 1) {
-      block.nextBlock = selectedBlocks[index + 1].id;
-    } else {
-      block.nextBlock = null;
-    }
   });
 
-  file.allocationMethod = "LINKED";
-  file.startBlock = selectedBlocks[0].id;
-  file.endBlock = selectedBlocks[selectedBlocks.length - 1].id;
-
-  file.dataBlocks = selectedBlocks.map((block) => block.id);
+  file.allocationMethod = "INDEXED";
+  file.indexBlock = indexBlock.id;
+  file.dataBlocks = dataBlockIds;
 
   return {
     success: true,
-    message: `Allocated ${needed} linked data blocks.`
+    message:
+      `Allocated 1 index block + ${neededDataBlocks} data blocks.`
   };
 }
