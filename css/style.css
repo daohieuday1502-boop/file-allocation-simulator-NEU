@@ -70,9 +70,10 @@ section {
 
 #disk-container {
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(10, 60px);
   gap: 6px;
   margin-top: 15px;
+  overflow-x: auto;
 }
 
 .disk-block {
