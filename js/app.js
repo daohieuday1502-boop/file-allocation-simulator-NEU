@@ -130,12 +130,20 @@ function renderAll(selectedFile = null) {
     element.className = "disk-block";
 
     if (block.status === "USED") {
-      element.classList.add("used");
-    }
+  const file = allocatedFiles.find(
+    f => f.id === block.fileId
+  );
 
-    if (block.kind === "INDEX") {
-      element.classList.add("index");
-    }
+  if (file) {
+    element.classList.add(
+      file.allocationMethod.toLowerCase()
+    );
+  }
+
+  if (block.kind === "INDEX") {
+    element.classList.add("index");
+  }
+}
 
     const idLabel = document.createElement("span");
     idLabel.className = "block-id";
