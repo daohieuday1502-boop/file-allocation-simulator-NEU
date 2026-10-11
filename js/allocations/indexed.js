@@ -1,42 +1,42 @@
-// Indexed Allocation algorithm
+
 import { getFreeBlocks } from "../core/disk.js";
 
 export function allocateIndexed(file, disk) {
-  const neededDataBlocks = file.requiredDataBlocks;
-
-  // Indexed Allocation cần:
-  // 1 Index Block + các Data Blocks
-  const totalBlocksNeeded = neededDataBlocks + 1;
-
+  const needed = file.requiredDataBlocks;
   const freeBlocks = getFreeBlocks(disk);
 
-  if (freeBlocks.length < totalBlocksNeeded) {
+  // Can 1 index block va N data block
+  if (freeBlocks.length < needed + 1) {
     return {
       success: false,
-      message:
-        "Indexed Allocation failed: not enough free blocks for index + data."
+      message: "Indexed Allocation failed: not enough free blocks."
     };
   }
 
+  // Chon index block dau tien
   const indexBlock = freeBlocks[0];
 
-  const dataBlocks = freeBlocks.slice(
-    1,
-    neededDataBlocks + 1
-  );
+  // Chon data block tu cac block trong con lai
+  const available = freeBlocks.slice(1);
+  const dataBlocks = [];
 
-  const dataBlockIds = dataBlocks.map(
-    (block) => block.id
-  );
+  for (let i = 0; i < needed; i++) {
+    const index = Math.floor(
+      (i + 0.5) * available.length / needed
+    );
+    dataBlocks.push(available[index]);
+  }
 
-  // Index Block
+  const dataBlockIds = dataBlocks.map(block => block.id);
+
+  // Luu bang dia chi vao index block
   indexBlock.status = "USED";
   indexBlock.fileId = file.id;
   indexBlock.kind = "INDEX";
   indexBlock.indexEntries = dataBlockIds;
 
-  // Data Blocks
-  dataBlocks.forEach((block) => {
+  // Danh dau cac data block
+  dataBlocks.forEach(block => {
     block.status = "USED";
     block.fileId = file.id;
     block.kind = "DATA";
@@ -48,7 +48,6 @@ export function allocateIndexed(file, disk) {
 
   return {
     success: true,
-    message:
-      `Allocated 1 index block + ${neededDataBlocks} data blocks.`
+    message: `Allocated 1 index block + ${needed} data blocks.`
   };
 }
