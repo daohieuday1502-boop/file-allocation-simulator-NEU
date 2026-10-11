@@ -1,4 +1,4 @@
-// chỗ này để tạo ra 20 ô trống trên "giao diện"
+
 import {
   createDisk,
   releaseFile,
@@ -6,132 +6,44 @@ import {
   BLOCK_SIZE_BYTES
 } from "./core/disk.js";
 
-import {
-  createFile
-} from "./core/file.js";
+import { createFile } from "./core/file.js";
+import { allocateContiguous } from "./allocations/contiguous.js";
+import { allocateLinked } from "./allocations/linked.js";
+import { allocateIndexed } from "./allocations/indexed.js";
 
-import {
-  allocateContiguous
-} from "./allocations/contiguous.js";
-
-import {
-  allocateLinked
-} from "./allocations/linked.js";
-
-import {
-  allocateIndexed
-} from "./allocations/indexed.js";
-
-
+// 1. Danh sach file mau
 const TEST_FILES = [
-  {
-    id: "F01",
-    name: "notes.txt",
-    sizeBytes: 6100
-  },
-
-  {
-    id: "F02",
-    name: "report.docx",
-    sizeBytes: 18500
-  },
-
-  {
-    id: "F03",
-    name: "photo.jpg",
-    sizeBytes: 52000
-  },
-
-  {
-    id: "F04",
-    name: "data.csv",
-    sizeBytes: 33000
-  },
-
-  {
-    id: "F05",
-    name: "slides.pptx",
-    sizeBytes: 88000
-  },
-
-  {
-    id: "F06",
-    name: "archive.zip",
-    sizeBytes: 120000
-  }
+  { id: "F01", name: "notes.txt", sizeBytes: 6100 },
+  { id: "F02", name: "report.docx", sizeBytes: 18500 },
+  { id: "F03", name: "photo.jpg", sizeBytes: 52000 },
+  { id: "F04", name: "data.csv", sizeBytes: 33000 },
+  { id: "F05", name: "slides.pptx", sizeBytes: 88000 },
+  { id: "F06", name: "archive.zip", sizeBytes: 120000 }
 ];
 
-
+// 2. Khoi tao du lieu
 let disk = createDisk(TOTAL_BLOCKS);
-
 let allocatedFiles = [];
 
+const $ = id => document.getElementById(id);
 
-const fileSelect =
-  document.getElementById("file-select");
+const fileSelect = $("file-select");
+const fileInfo = $("file-info");
+const message = $("message");
+const diskContainer = $("disk-container");
+const diskStats = $("disk-stats");
+const fileList = $("file-list");
+const allocationDetails = $("allocation-details");
 
-const fileInfo =
-  document.getElementById("file-info");
-
-const allocateButton =
-  document.getElementById("allocate-button");
-
-const resetButton =
-  document.getElementById("reset-button");
-
-const diskContainer =
-  document.getElementById("disk-container");
-
-const diskStats =
-  document.getElementById("disk-stats");
-
-const message =
-  document.getElementById("message");
-
-const allocationDetails =
-  document.getElementById("allocation-details");
-
-const fileList =
-  document.getElementById("file-list");
-
-
-function populateFileSelect() {
-
-  TEST_FILES.forEach((file) => {
-
-    const option =
-      document.createElement("option");
-
-    option.value = file.id;
-
-    option.textContent =
-      `${file.name} (${file.sizeBytes} bytes)`;
-
-    fileSelect.appendChild(option);
-  });
-
-}
-
-
-function getSelectedFileDefinition() {
-
-  return TEST_FILES.find(
-    (file) => file.id === fileSelect.value
+// 3. Hien thi thong tin file dang chon
+function showSelectedFileInfo() {
+  const definition = TEST_FILES.find(
+    f => f.id === fileSelect.value
   );
 
-}
+  if (!definition) return;
 
-
-function showSelectedFileInfo() {
-
-  const definition =
-    getSelectedFileDefinition();
-
-  const file =
-    createFile(
-      definition,
-      BLOCK_SIZE_BYTES
-    );
+  const file = createFile(definition, BLOCK_SIZE_BYTES);
 
   fileInfo.textContent =
     `File name: ${file.name}
@@ -140,203 +52,168 @@ Block size: ${file.blockSizeBytes} bytes
 Required data blocks: ${file.requiredDataBlocks}`;
 }
 
+// 4. Cap phat file
+function allocateFile() {
+  const definition = TEST_FILES.find(
+    f => f.id === fileSelect.value
+  );
 
-function getSelectedMethod() {
+  if (!definition) return;
 
-  const selected =
-    document.querySelector(
-      'input[name="allocation-method"]:checked'
-    );
-
-  return selected.value;
-}
-
-
-function allocateSelectedFile() {
-
-  const definition =
-    getSelectedFileDefinition();
-
-  const alreadyExists =
-    allocatedFiles.some(
-      (file) => file.id === definition.id
-    );
-
-  if (alreadyExists) {
-    message.textContent =
-      "This test file is already allocated.";
-
+  if (allocatedFiles.some(f => f.id === definition.id)) {
+    message.textContent = "This file is already allocated.";
     return;
   }
 
+  const file = createFile(definition, BLOCK_SIZE_BYTES);
 
-  const file =
-    createFile(
-      definition,
-      BLOCK_SIZE_BYTES
-    );
+  const selected = document.querySelector(
+    'input[name="allocation-method"]:checked'
+  );
 
+  if (!selected) {
+    message.textContent = "Please select a method.";
+    return;
+  }
 
-  const method =
-    getSelectedMethod();
-
-
+  const method = selected.value;
   let result;
 
-
   if (method === "CONTIGUOUS") {
-
-    result =
-      allocateContiguous(file, disk);
-
+    result = allocateContiguous(file, disk);
   } else if (method === "LINKED") {
-
-    result =
-      allocateLinked(file, disk);
-
+    result = allocateLinked(file, disk);
+  } else if (method === "INDEXED") {
+    result = allocateIndexed(file, disk);
   } else {
-
-    result =
-      allocateIndexed(file, disk);
-
-  }
-
-
-  message.textContent =
-    result.message;
-
-
-  if (!result.success) {
+    message.textContent = "Invalid allocation method.";
     return;
   }
 
+  message.textContent = result.message;
+
+  if (!result.success) return;
 
   allocatedFiles.push(file);
-
-
-  renderDisk();
-
-  renderDiskStats();
-
-  renderFileList();
-
-  renderAllocationDetails(file);
+  renderAll(file);
 }
 
+// 5. Xoa file va giai phong block
+function deleteFile(fileId) {
+  releaseFile(disk, fileId);
 
-function renderDisk() {
+  allocatedFiles = allocatedFiles.filter(
+    f => f.id !== fileId
+  );
 
+  message.textContent = `File ${fileId} deleted.`;
+  renderAll();
+}
+
+// 6. Reset o dia
+function resetSimulator() {
+  disk = createDisk(TOTAL_BLOCKS);
+  allocatedFiles = [];
+
+  message.textContent = "Simulator reset.";
+  renderAll();
+}
+
+// 7. Cap nhat toan bo giao dien
+function renderAll(selectedFile = null) {
+
+  // A. Hien thi 100 block
   diskContainer.innerHTML = "";
 
-
-  disk.forEach((block) => {
-
-    const blockElement =
-      document.createElement("div");
-
-    blockElement.className =
-      "disk-block";
-
+  disk.forEach(block => {
+    const element = document.createElement("div");
+    element.className = "disk-block";
 
     if (block.status === "USED") {
-      blockElement.classList.add("used");
+      element.classList.add("used");
     }
-
 
     if (block.kind === "INDEX") {
-      blockElement.classList.add("index");
+      element.classList.add("index");
     }
 
+    const idLabel = document.createElement("span");
+    idLabel.className = "block-id";
+    idLabel.textContent = block.id;
 
-    const idLabel =
-      document.createElement("span");
+    const ownerLabel = document.createElement("span");
+    ownerLabel.className = "block-owner";
+    ownerLabel.textContent = block.fileId ?? "FREE";
 
-    idLabel.className =
-      "block-id";
+    element.append(idLabel, ownerLabel);
 
-    idLabel.textContent =
-      block.id;
-
-
-    const ownerLabel =
-      document.createElement("span");
-
-    ownerLabel.className =
-      "block-owner";
-
-    ownerLabel.textContent =
-      block.fileId ?? "FREE";
-
-
-    blockElement.appendChild(idLabel);
-
-    blockElement.appendChild(ownerLabel);
-
-
+    // Thong tin block khi di chuot vao
     let tooltip =
-      `Block ${block.id}
-Status: ${block.status}`;
-
+      `Block ${block.id}\nStatus: ${block.status}`;
 
     if (block.fileId !== null) {
-
       tooltip +=
-        `\nFile: ${block.fileId}`;
-
-      tooltip +=
-        `\nType: ${block.kind}`;
+        `\nFile: ${block.fileId}\nType: ${block.kind}`;
     }
-
 
     if (block.nextBlock !== null) {
-
-      tooltip +=
-        `\nNext block: ${block.nextBlock}`;
+      tooltip += `\nNext block: ${block.nextBlock}`;
     }
 
-
     if (block.kind === "INDEX") {
-
       tooltip +=
         `\nPointers: ${block.indexEntries.join(", ")}`;
     }
 
-
-    blockElement.title =
-      tooltip;
-
-
-    diskContainer.appendChild(
-      blockElement
-    );
-
+    element.title = tooltip;
+    diskContainer.appendChild(element);
   });
 
-}
-
-
-function renderDiskStats() {
-
-  const used =
-    disk.filter(
-      (block) =>
-        block.status === "USED"
-    ).length;
-
-  const free =
-    TOTAL_BLOCKS - used;
-
+  // B. Thong ke o dia
+  const used = disk.filter(
+    b => b.status === "USED"
+  ).length;
 
   diskStats.textContent =
     `Block size: ${BLOCK_SIZE_BYTES} bytes
 Total blocks: ${TOTAL_BLOCKS}
 Disk capacity: ${TOTAL_BLOCKS * BLOCK_SIZE_BYTES} bytes
 Used blocks: ${used}
-Free blocks: ${free}`;
-}
+Free blocks: ${TOTAL_BLOCKS - used}`;
 
+  // C. Danh sach file da cap phat
+  fileList.innerHTML = "";
 
-function renderAllocationDetails(file) {
+  if (allocatedFiles.length === 0) {
+    fileList.textContent = "No files allocated yet.";
+  }
+
+  allocatedFiles.forEach(file => {
+    const row = document.createElement("div");
+    row.className = "file-row";
+
+    const text = document.createElement("span");
+    text.textContent =
+      `${file.name} — ${file.allocationMethod}`;
+
+    const button = document.createElement("button");
+    button.className = "delete-button";
+    button.textContent = "Delete";
+    button.addEventListener(
+      "click", () => deleteFile(file.id)
+    );
+
+    row.append(text, button);
+    fileList.appendChild(row);
+  });
+
+  // D. Chi tiet cap phat
+  if (!selectedFile) {
+    allocationDetails.textContent = "No file selected.";
+    return;
+  }
+
+  const file = selectedFile;
 
   let details =
     `File: ${file.name}
@@ -344,197 +221,50 @@ File size: ${file.sizeBytes} bytes
 Required data blocks: ${file.requiredDataBlocks}
 Method: ${file.allocationMethod}`;
 
-
-  if (
-    file.allocationMethod ===
-    "CONTIGUOUS"
-  ) {
-
+  if (file.allocationMethod === "CONTIGUOUS") {
     details +=
-      `\nStart block: ${file.startBlock}`;
-
-    details +=
-      `\nData blocks: ${file.dataBlocks.join(", ")}`;
-
+      `\nStart block: ${file.startBlock}
+Data blocks: ${file.dataBlocks.join(", ")}`;
   }
 
-
-  if (
-    file.allocationMethod ===
-    "LINKED"
-  ) {
-
+  if (file.allocationMethod === "LINKED") {
     details +=
-      `\nStart block: ${file.startBlock}`;
-
-    details +=
-      `\nEnd block: ${file.endBlock}`;
-
-    details +=
-      `\nBlock chain: ${file.dataBlocks.join(" → ")}`;
-
+      `\nStart block: ${file.startBlock}
+End block: ${file.endBlock}
+Block chain: ${file.dataBlocks.join(" → ")}`;
   }
 
-
-  if (
-    file.allocationMethod ===
-    "INDEXED"
-  ) {
-
+  if (file.allocationMethod === "INDEXED") {
     details +=
-      `\nIndex block: ${file.indexBlock}`;
-
-    details +=
-      `\nData blocks: ${file.dataBlocks.join(", ")}`;
-
-    details +=
-      `\nPhysical blocks used: ${file.requiredDataBlocks + 1}`;
-
+      `\nIndex block: ${file.indexBlock}
+Data blocks: ${file.dataBlocks.join(", ")}
+Physical blocks used: ${file.requiredDataBlocks + 1}`;
   }
 
-
-  allocationDetails.textContent =
-    details;
+  allocationDetails.textContent = details;
 }
 
+// 8. Khoi dong chuong trinh
+TEST_FILES.forEach(file => {
+  const option = document.createElement("option");
+  option.value = file.id;
+  option.textContent =
+    `${file.name} (${file.sizeBytes} bytes)`;
 
-function renderFileList() {
-
-  fileList.innerHTML = "";
-
-
-  if (allocatedFiles.length === 0) {
-
-    fileList.textContent =
-      "No files allocated yet.";
-
-    return;
-  }
-
-
-  allocatedFiles.forEach((file) => {
-
-    const row =
-      document.createElement("div");
-
-    row.className =
-      "file-row";
-
-
-    const text =
-      document.createElement("span");
-
-    text.textContent =
-      `${file.name} — ${file.allocationMethod}`;
-
-
-    const deleteButton =
-      document.createElement("button");
-
-    deleteButton.className =
-      "delete-button";
-
-    deleteButton.textContent =
-      "Delete";
-
-
-    deleteButton.addEventListener(
-      "click",
-      () => deleteFile(file.id)
-    );
-
-
-    row.appendChild(text);
-
-    row.appendChild(deleteButton);
-
-    fileList.appendChild(row);
-
-  });
-
-}
-
-
-function deleteFile(fileId) {
-
-  releaseFile(
-    disk,
-    fileId
-  );
-
-
-  allocatedFiles =
-    allocatedFiles.filter(
-      (file) =>
-        file.id !== fileId
-    );
-
-
-  message.textContent =
-    `File ${fileId} deleted. Blocks released.`;
-
-
-  allocationDetails.textContent =
-    "No file selected.";
-
-
-  renderDisk();
-
-  renderDiskStats();
-
-  renderFileList();
-}
-
-
-function resetSimulator() {
-
-  disk =
-    createDisk(TOTAL_BLOCKS);
-
-
-  allocatedFiles = [];
-
-
-  message.textContent =
-    "Simulator reset.";
-
-
-  allocationDetails.textContent =
-    "No file allocated yet.";
-
-
-  renderDisk();
-
-  renderDiskStats();
-
-  renderFileList();
-}
-
+  fileSelect.appendChild(option);
+});
 
 fileSelect.addEventListener(
-  "change",
-  showSelectedFileInfo
+  "change", showSelectedFileInfo
 );
 
-
-allocateButton.addEventListener(
-  "click",
-  allocateSelectedFile
+$("allocate-button").addEventListener(
+  "click", allocateFile
 );
 
-
-resetButton.addEventListener(
-  "click",
-  resetSimulator
+$("reset-button").addEventListener(
+  "click", resetSimulator
 );
-
-
-populateFileSelect();
 
 showSelectedFileInfo();
-
-renderDisk();
-
-renderDiskStats();
-
-renderFileList();
+renderAll();
