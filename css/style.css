@@ -77,8 +77,8 @@ section {
 }
 
 .disk-block {
-  min-width: 0;
-  aspect-ratio: 1 / 1;
+  width: 60px;
+  height: 60px;
   background-color: #eeeeee;
   border: 1px solid #888;
   border-radius: 3px;
