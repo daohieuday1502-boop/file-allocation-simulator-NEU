@@ -1,38 +1,43 @@
-// Linked Allocation algorithm
+
 import { getFreeBlocks } from "../core/disk.js";
 
 export function allocateLinked(file, disk) {
   const needed = file.requiredDataBlocks;
-
   const freeBlocks = getFreeBlocks(disk);
 
   if (freeBlocks.length < needed) {
     return {
       success: false,
-      message:
-        "Linked Allocation failed: not enough free blocks."
+      message: "Linked Allocation failed: not enough free blocks."
     };
   }
 
-  const selectedBlocks = freeBlocks.slice(0, needed);
+  // Chon cac block trai deu tren danh sach block trong
+  const selected = [];
 
-  selectedBlocks.forEach((block, index) => {
+  for (let i = 0; i < needed; i++) {
+    const index = Math.floor(
+      (i + 0.5) * freeBlocks.length / needed
+    );
+    selected.push(freeBlocks[index]);
+  }
+
+  // Danh dau va noi cac block voi nhau
+  selected.forEach((block, i) => {
     block.status = "USED";
     block.fileId = file.id;
     block.kind = "DATA";
 
-    if (index < selectedBlocks.length - 1) {
-      block.nextBlock = selectedBlocks[index + 1].id;
-    } else {
-      block.nextBlock = null;
-    }
+    block.nextBlock =
+      i < selected.length - 1
+        ? selected[i + 1].id
+        : null;
   });
 
   file.allocationMethod = "LINKED";
-  file.startBlock = selectedBlocks[0].id;
-  file.endBlock = selectedBlocks[selectedBlocks.length - 1].id;
-
-  file.dataBlocks = selectedBlocks.map((block) => block.id);
+  file.startBlock = selected[0]?.id ?? null;
+  file.endBlock = selected[selected.length - 1]?.id ?? null;
+  file.dataBlocks = selected.map(block => block.id);
 
   return {
     success: true,
