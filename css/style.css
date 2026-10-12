@@ -1,219 +1,307 @@
-
-/* ========== GENERAL ========== */
-
 * {
   box-sizing: border-box;
 }
 
 body {
-  font-family: Arial, sans-serif;
   margin: 0;
-  padding: 20px;
-  background-color: #f5f6f8;
+  font-family: Arial, sans-serif;
+  background-color: #f4f5f7;
   color: #222;
 }
 
-h1, h2, h3 {
-  color: #111827;
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px;
 }
 
-h2 {
-  margin-top: 0;
+.page-header {
+  margin-bottom: 24px;
 }
 
-button, select {
-  font-family: inherit;
-  font-size: 14px;
+.page-header h1 {
+  margin-bottom: 8px;
 }
 
-button {
-  padding: 9px 16px;
-  border: none;
-  border-radius: 5px;
-  background-color: #2563eb;
-  color: white;
-  cursor: pointer;
+.page-header p {
+  color: #555;
 }
 
-button:hover {
-  background-color: #1d4ed8;
-}
 
-select {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-}
+/* PANEL */
 
-section {
-  background-color: white;
+.panel {
+  background: white;
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
-/* ========== FILE INFORMATION ========== */
-
-#file-info {
-  margin-top: 12px;
-  line-height: 1.7;
-  white-space: pre-line;
+.panel h2 {
+  margin-top: 0;
+  font-size: 20px;
 }
 
-#message {
-  margin: 15px 0;
+
+/* INPUT */
+
+select {
+  min-width: 280px;
+  padding: 9px;
+  font-size: 15px;
+}
+
+.method-options label {
+  display: block;
+  margin: 10px 0;
+}
+
+
+/* BUTTONS */
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button {
+  border: 1px solid #777;
+  background: white;
+  border-radius: 5px;
+  padding: 9px 15px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button:hover {
+  background: #eeeeee;
+}
+
+.primary-button {
   font-weight: bold;
 }
 
-/* ========== VIRTUAL DISK ========== */
+
+/* INFO */
+
+.info-box {
+  margin-top: 14px;
+  padding: 13px;
+  background: #f7f7f7;
+  border: 1px solid #e1e1e1;
+  border-radius: 5px;
+  white-space: pre-line;
+  line-height: 1.55;
+}
+
+.small-note {
+  font-size: 13px;
+  color: #666;
+}
+
+
+/* RESULT */
+
+.result-box {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #ddd;
+  border-left-width: 5px;
+  border-radius: 5px;
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+.result-success {
+  border-left-color: #258344;
+  background: #f2faf5;
+}
+
+.result-fail {
+  border-left-color: #b02a37;
+  background: #fff5f5;
+}
+
+
+/* DISK */
 
 #disk-container {
   display: grid;
-  grid-template-columns: repeat(10, 60px);
-  gap: 6px;
-  margin-top: 15px;
-  overflow-x: auto;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 5px;
+  margin-top: 18px;
+  max-width: 760px;
 }
 
 .disk-block {
-  width: 60px;
-  height: 60px;
-  background-color: #eeeeee;
+  aspect-ratio: 1;
+  min-width: 0;
+
   border: 1px solid #888;
-  border-radius: 3px;
+  border-radius: 4px;
 
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 
-  text-align: center;
-  cursor: pointer;
-  transition: 0.15s;
-}
+  font-size: 11px;
 
-.disk-block:hover {
-  outline: 2px solid #374151;
-  outline-offset: 1px;
+  background-color: #eeeeee;
 }
 
 .block-id {
-  font-size: 12px;
   font-weight: bold;
 }
 
 .block-owner {
-  font-size: 10px;
+  font-size: 8px;
+  margin-top: 2px;
+  overflow: hidden;
+  max-width: 100%;
 }
 
-/* ========== ALLOCATION COLORS ========== */
 
-/* Contiguous - Blue */
-.disk-block.contiguous {
-  background-color: #bfdbfe;
-  border-color: #60a5fa;
+/* METHOD COLORS */
+
+.block-contiguous {
+  background-color: #b8d6ff;
 }
 
-/* Linked - Green */
-.disk-block.linked {
-  background-color: #bbf7d0;
-  border-color: #4ade80;
+.block-linked {
+  background-color: #ccecc7;
 }
 
-/* Indexed Data - Yellow */
-.disk-block.indexed {
-  background-color: #fde68a;
-  border-color: #fbbf24;
+.block-indexed {
+  background-color: #ffe3a3;
 }
 
-/* Indexed Index Block - Orange */
-.disk-block.indexed.index {
-  background-color: #fdba74;
-  border-color: #f97316;
+.block-index {
+  background-color: #ffc9c9;
+  border: 3px solid #8d1d1d;
 }
 
-/* ========== DISK STATISTICS ========== */
-
-#disk-stats {
-  margin: 12px 0;
-  line-height: 1.7;
-  white-space: pre-line;
+.block-scenario {
+  background-color: #cfcfcf;
 }
 
-/* ========== ALLOCATION DETAILS ========== */
 
-#allocation-details {
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 15px;
-  margin-top: 12px;
-  line-height: 1.7;
-  white-space: pre-line;
-}
+/* LEGEND */
 
-/* ========== ALLOCATED FILE LIST ========== */
-
-#file-list {
-  margin-top: 12px;
-}
-
-.file-row {
+.legend {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 15px;
+  font-size: 13px;
+}
+
+.legend span {
+  display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px;
-  margin-bottom: 8px;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  gap: 5px;
+}
+
+.legend-box {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  border: 1px solid #777;
+}
+
+.legend-box.free {
+  background: #eeeeee;
+}
+
+.legend-box.contiguous {
+  background: #b8d6ff;
+}
+
+.legend-box.linked {
+  background: #ccecc7;
+}
+
+.legend-box.indexed {
+  background: #ffe3a3;
+}
+
+.legend-box.index-block {
+  background: #ffc9c9;
+  border: 2px solid #8d1d1d;
+}
+
+.legend-box.scenario {
+  background: #cfcfcf;
+}
+
+
+/* BITMAP */
+
+#bitmap {
+  font-family: Consolas, monospace;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+
+  padding: 12px;
+  background: #111;
+  color: #f0f0f0;
+
   border-radius: 5px;
 }
 
+
+/* FILE LIST */
+
+.file-row {
+  padding: 12px 0;
+  border-bottom: 1px solid #ddd;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.file-row:last-child {
+  border-bottom: none;
+}
+
+.file-info-line {
+  flex: 1;
+}
+
 .delete-button {
-  background-color: #dc2626;
-  color: white;
+  flex-shrink: 0;
 }
 
-.delete-button:hover {
-  background-color: #b91c1c;
-}
 
-/* ========== RESET BUTTON ========== */
+/* RESPONSIVE */
 
-#reset-button {
-  background-color: #6b7280;
-}
+@media (max-width: 650px) {
 
-#reset-button:hover {
-  background-color: #4b5563;
-}
-
-/* ========== RESPONSIVE ========== */
-
-@media (max-width: 600px) {
-  body {
-    padding: 10px;
-  }
-
-  section {
-    padding: 12px;
+  .app {
+    padding: 14px;
   }
 
   #disk-container {
+    grid-template-columns: repeat(10, minmax(25px, 1fr));
     gap: 3px;
   }
 
-  .block-id {
-    font-size: 10px;
+  .disk-block {
+    font-size: 9px;
   }
 
   .block-owner {
-    font-size: 8px;
+    display: none;
   }
 
-  .file-row {
-    flex-wrap: wrap;
+  select {
+    width: 100%;
+    min-width: 0;
   }
+
 }
