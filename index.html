@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
@@ -21,12 +21,17 @@
 
   <main class="app">
 
-    <h1>File Allocation Simulator</h1>
+    <header class="page-header">
+      <h1>File Allocation Simulator</h1>
 
-    <p>
-      Simulation of Contiguous, Linked and Indexed
-      File Allocation methods.
-    </p>
+      <p>
+        Simulation of Contiguous, Linked and Indexed
+        File Allocation methods.
+      </p>
+    </header>
+
+
+    <!-- FILE SELECTION -->
 
     <section class="panel">
 
@@ -42,42 +47,78 @@
     </section>
 
 
+    <!-- METHOD -->
+
     <section class="panel">
 
       <h2>2. Select Allocation Method</h2>
 
-      <label>
-        <input
-          type="radio"
-          name="allocation-method"
-          value="CONTIGUOUS"
-          checked
-        >
-        Contiguous Allocation
-      </label>
+      <div class="method-options">
 
-      <label>
-        <input
-          type="radio"
-          name="allocation-method"
-          value="LINKED"
-        >
-        Linked Allocation
-      </label>
+        <label>
+          <input
+            type="radio"
+            name="allocation-method"
+            value="CONTIGUOUS"
+            checked
+          >
+          Contiguous Allocation
+        </label>
 
-      <label>
-        <input
-          type="radio"
-          name="allocation-method"
-          value="INDEXED"
-        >
-        Indexed Allocation
-      </label>
+        <label>
+          <input
+            type="radio"
+            name="allocation-method"
+            value="LINKED"
+          >
+          Linked Allocation
+        </label>
+
+        <label>
+          <input
+            type="radio"
+            name="allocation-method"
+            value="INDEXED"
+          >
+          Indexed Allocation
+        </label>
+
+      </div>
+
+    </section>
+
+
+    <!-- STORAGE REQUIREMENT -->
+
+    <section class="panel">
+
+      <h2>3. Storage Requirement</h2>
+
+      <div
+        id="storage-requirement"
+        class="info-box"
+      ></div>
+
+    </section>
+
+
+    <!-- CONTROLS -->
+
+    <section class="panel">
+
+      <h2>4. Simulation Controls</h2>
 
       <div class="buttons">
 
-        <button id="allocate-button">
+        <button
+          id="allocate-button"
+          class="primary-button"
+        >
           Allocate File
+        </button>
+
+        <button id="fragment-button">
+          Load Fragmentation Scenario
         </button>
 
         <button id="reset-button">
@@ -86,39 +127,102 @@
 
       </div>
 
-      <div id="message"></div>
+      <div
+        id="allocation-result"
+        class="result-box"
+      >
+        No allocation performed yet.
+      </div>
 
     </section>
 
 
+    <!-- DISK -->
+
     <section class="panel">
 
-      <h2>3. Virtual Disk</h2>
+      <h2>5. Virtual Disk</h2>
 
-      <div id="disk-stats"></div>
+      <div
+        id="disk-stats"
+        class="info-box"
+      ></div>
+
+      <div class="legend">
+
+        <span>
+          <i class="legend-box free"></i>
+          Free
+        </span>
+
+        <span>
+          <i class="legend-box contiguous"></i>
+          Contiguous
+        </span>
+
+        <span>
+          <i class="legend-box linked"></i>
+          Linked
+        </span>
+
+        <span>
+          <i class="legend-box indexed"></i>
+          Indexed Data
+        </span>
+
+        <span>
+          <i class="legend-box index-block"></i>
+          Index Block
+        </span>
+
+        <span>
+          <i class="legend-box scenario"></i>
+          Existing Data
+        </span>
+
+      </div>
 
       <div id="disk-container"></div>
 
     </section>
 
 
+    <!-- BITMAP -->
+
     <section class="panel">
 
-      <h2>Allocation Details</h2>
+      <h2>6. Free-Space Bitmap</h2>
+
+      <p class="small-note">
+        1 = FREE &nbsp;&nbsp; 0 = USED
+      </p>
+
+      <div id="bitmap"></div>
+
+    </section>
+
+
+    <!-- FCB -->
+
+    <section class="panel">
+
+      <h2>7. File Control Block</h2>
 
       <div
-        id="allocation-details"
+        id="fcb-panel"
         class="info-box"
       >
-        No file allocated yet.
+        No allocated file selected.
       </div>
 
     </section>
 
 
+    <!-- FILE LIST -->
+
     <section class="panel">
 
-      <h2>Files Currently on Disk</h2>
+      <h2>8. Files Currently on Disk</h2>
 
       <div id="file-list">
         No files allocated yet.
@@ -128,9 +232,10 @@
 
   </main>
 
+
   <script
     type="module"
-    src="js/app.js?v=4"
+    src="js/app.js?v=10"
   ></script>
 
 </body>
