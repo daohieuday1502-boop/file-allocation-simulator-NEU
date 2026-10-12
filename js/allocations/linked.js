@@ -1,46 +1,193 @@
+import {
+  getFreeBlocks
+} from "../core/disk.js";
 
-import { getFreeBlocks } from "../core/disk.js";
 
-export function allocateLinked(file, disk) {
-  const needed = file.requiredDataBlocks;
-  const freeBlocks = getFreeBlocks(disk);
+export function allocateLinked(
+  file,
+  disk,
+  requirement
+) {
 
-  if (freeBlocks.length < needed) {
+  const needed =
+    requirement.requiredDataBlocks;
+
+
+  const freeBlocks =
+    getFreeBlocks(disk);
+
+
+  if (
+    freeBlocks.length < needed
+  ) {
+
     return {
+
       success: false,
-      message: "Linked Allocation failed: not enough free blocks."
+
+      method: "LINKED",
+
+      requiredBlocks:
+        needed,
+
+      freeBlocks:
+        freeBlocks.length,
+
+      reason:
+        "Not enough free blocks are available."
+
     };
+
   }
 
-  // Chon cac block trai deu tren danh sach block trong
-  const selected = [];
 
-  for (let i = 0; i < needed; i++) {
-    const index = Math.floor(
-      (i + 0.5) * freeBlocks.length / needed
+  /*
+    For better visualization,
+    do not always choose blocks
+    immediately next to each other.
+
+    We first take alternating
+    free blocks when possible.
+  */
+
+  const selectedBlocks = [];
+
+  let index = 0;
+
+
+  while (
+    selectedBlocks.length < needed &&
+    index < freeBlocks.length
+  ) {
+
+    selectedBlocks.push(
+      freeBlocks[index]
     );
-    selected.push(freeBlocks[index]);
+
+    index += 2;
+
   }
 
-  // Danh dau va noi cac block voi nhau
-  selected.forEach((block, i) => {
-    block.status = "USED";
-    block.fileId = file.id;
-    block.kind = "DATA";
 
-    block.nextBlock =
-      i < selected.length - 1
-        ? selected[i + 1].id
-        : null;
-  });
+  /*
+    If alternating blocks were
+    not enough, fill from the
+    remaining FREE blocks.
+  */
 
-  file.allocationMethod = "LINKED";
-  file.startBlock = selected[0]?.id ?? null;
-  file.endBlock = selected[selected.length - 1]?.id ?? null;
-  file.dataBlocks = selected.map(block => block.id);
+  if (
+    selectedBlocks.length < needed
+  ) {
+
+    for (
+      let i = 0;
+      i < freeBlocks.length;
+      i++
+    ) {
+
+      const block =
+        freeBlocks[i];
+
+
+      if (
+        !selectedBlocks.includes(
+          block
+        )
+      ) {
+
+        selectedBlocks.push(
+          block
+        );
+
+      }
+
+
+      if (
+        selectedBlocks.length ===
+        needed
+      ) {
+
+        break;
+
+      }
+
+    }
+
+  }
+
+
+  selectedBlocks.forEach(
+    (block, position) => {
+
+      block.status = "USED";
+
+      block.fileId =
+        file.id;
+
+      block.allocationMethod =
+        "LINKED";
+
+      block.kind = "DATA";
+
+
+      if (
+        position <
+        selectedBlocks.length - 1
+      ) {
+
+        block.nextBlock =
+          selectedBlocks[
+            position + 1
+          ].id;
+
+      } else {
+
+        block.nextBlock = null;
+
+      }
+
+    }
+  );
+
+
+  file.allocationMethod =
+    "LINKED";
+
+  file.requiredDataBlocks =
+    needed;
+
+  file.totalPhysicalBlocks =
+    requirement.totalPhysicalBlocks;
+
+  file.usableBytesPerDataBlock =
+    requirement.usableBytesPerDataBlock;
+
+  file.startBlock =
+    selectedBlocks[0].id;
+
+  file.endBlock =
+    selectedBlocks[
+      selectedBlocks.length - 1
+    ].id;
+
+  file.dataBlocks =
+    selectedBlocks.map(
+      (block) => block.id
+    );
+
 
   return {
+
     success: true,
-    message: `Allocated ${needed} linked data blocks.`
+
+    method: "LINKED",
+
+    allocatedBlocks:
+      file.dataBlocks,
+
+    message:
+      "Linked allocation completed successfully."
+
   };
+
 }
