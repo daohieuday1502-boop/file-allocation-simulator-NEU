@@ -1,382 +1,1332 @@
-
 import {
+
   createDisk,
+
   releaseFile,
+
+  createFragmentationScenario,
+
   TOTAL_BLOCKS,
-  BLOCK_SIZE_BYTES
+
+  BLOCK_SIZE_BYTES,
+
+  POINTER_SIZE_BYTES
+
 } from "./core/disk.js";
 
-import { createFile } from "./core/file.js";
-import { allocateContiguous } from "./allocations/contiguous.js";
-import { allocateLinked } from "./allocations/linked.js";
-import { allocateIndexed } from "./allocations/indexed.js";
 
-// ===================================
-// 1. DANH SACH FILE MAU
-// ===================================
+import {
+
+  createFile,
+
+  calculateStorageRequirement
+
+} from "./core/file.js";
+
+
+import {
+
+  allocateContiguous
+
+} from "./allocations/contiguous.js";
+
+
+import {
+
+  allocateLinked
+
+} from "./allocations/linked.js";
+
+
+import {
+
+  allocateIndexed
+
+} from "./allocations/indexed.js";
+
+
+
+/*
+  --------------------------------------------------
+  TEST FILES
+  --------------------------------------------------
+
+  These are simulated files.
+
+  Their sizes are stored in bytes.
+
+  Some files are intentionally larger
+  so they can be used for allocation
+  failure demonstrations.
+*/
 
 const TEST_FILES = [
-  { id: "F01", name: "notes.txt", sizeBytes: 6100 },
-  { id: "F02", name: "report.docx", sizeBytes: 18500 },
-  { id: "F03", name: "photo.jpg", sizeBytes: 52000 },
-  { id: "F04", name: "data.csv", sizeBytes: 33000 },
-  { id: "F05", name: "slides.pptx", sizeBytes: 88000 },
-  { id: "F06", name: "archive.zip", sizeBytes: 120000 }
+
+  {
+    id: "F01",
+    name: "tiny.txt",
+    sizeBytes: 1000
+  },
+
+  {
+    id: "F02",
+    name: "notes.txt",
+    sizeBytes: 6100
+  },
+
+  {
+    id: "F03",
+    name: "report.docx",
+    sizeBytes: 18500
+  },
+
+  {
+    id: "F04",
+    name: "boundary-test.bin",
+    sizeBytes: 20470
+  },
+
+  {
+    id: "F05",
+    name: "photo.jpg",
+    sizeBytes: 52000
+  },
+
+  {
+    id: "F06",
+    name: "data.csv",
+    sizeBytes: 33000
+  },
+
+  {
+    id: "F07",
+    name: "slides.pptx",
+    sizeBytes: 88000
+  },
+
+  {
+    id: "F08",
+    name: "large-test.bin",
+    sizeBytes: 32768
+  },
+
+  {
+    id: "F09",
+    name: "very-large-test.bin",
+    sizeBytes: 120000
+  }
+
 ];
 
-// ===================================
-// 2. KHOI TAO CHUONG TRINH
-// ===================================
 
-let disk = createDisk(TOTAL_BLOCKS);
+
+/*
+  --------------------------------------------------
+  GLOBAL STATE
+  --------------------------------------------------
+*/
+
+let disk =
+  createDisk(TOTAL_BLOCKS);
+
+
 let allocatedFiles = [];
 
-const fileSelect = document.getElementById("file-select");
-const fileInfo = document.getElementById("file-info");
-const allocateButton = document.getElementById("allocate-button");
-const resetButton = document.getElementById("reset-button");
-const diskContainer = document.getElementById("disk-container");
-const diskStats = document.getElementById("disk-stats");
-const message = document.getElementById("message");
-const allocationDetails = document.getElementById("allocation-details");
-const fileList = document.getElementById("file-list");
 
-// ===================================
-// 3. HIEN THI FILE DANG CHON
-// ===================================
 
-function showSelectedFileInfo() {
-  const definition = TEST_FILES.find(
-    file => file.id === fileSelect.value
+/*
+  --------------------------------------------------
+  HTML ELEMENTS
+  --------------------------------------------------
+*/
+
+const fileSelect =
+  document.getElementById(
+    "file-select"
   );
 
-  if (!definition) return;
 
-  const file = createFile(definition, BLOCK_SIZE_BYTES);
+const fileInfo =
+  document.getElementById(
+    "file-info"
+  );
 
-  fileInfo.textContent =
-    `File name: ${file.name}
-File size: ${file.sizeBytes} bytes
-Block size: ${file.blockSizeBytes} bytes
-Required data blocks: ${file.requiredDataBlocks}`;
+
+const storageRequirement =
+  document.getElementById(
+    "storage-requirement"
+  );
+
+
+const allocateButton =
+  document.getElementById(
+    "allocate-button"
+  );
+
+
+const fragmentButton =
+  document.getElementById(
+    "fragment-button"
+  );
+
+
+const resetButton =
+  document.getElementById(
+    "reset-button"
+  );
+
+
+const allocationResult =
+  document.getElementById(
+    "allocation-result"
+  );
+
+
+const diskContainer =
+  document.getElementById(
+    "disk-container"
+  );
+
+
+const diskStats =
+  document.getElementById(
+    "disk-stats"
+  );
+
+
+const bitmap =
+  document.getElementById(
+    "bitmap"
+  );
+
+
+const fcbPanel =
+  document.getElementById(
+    "fcb-panel"
+  );
+
+
+const fileList =
+  document.getElementById(
+    "file-list"
+  );
+
+
+
+/*
+  --------------------------------------------------
+  FILE SELECT
+  --------------------------------------------------
+*/
+
+function populateFileSelect() {
+
+  TEST_FILES.forEach((file) => {
+
+    const option =
+      document.createElement(
+        "option"
+      );
+
+
+    option.value =
+      file.id;
+
+
+    option.textContent =
+      `${file.name} (${file.sizeBytes} bytes)`;
+
+
+    fileSelect.appendChild(
+      option
+    );
+
+  });
+
 }
 
-// ===================================
-// 4. CAP PHAT FILE
-// ===================================
 
-function allocateFile() {
-  const definition = TEST_FILES.find(
-    file => file.id === fileSelect.value
+
+function getSelectedFileDefinition() {
+
+  return TEST_FILES.find(
+
+    (file) =>
+      file.id ===
+      fileSelect.value
+
   );
 
-  if (!definition) return;
+}
 
-  // Kiem tra file da ton tai chua
-  const alreadyExists = allocatedFiles.some(
-    file => file.id === definition.id
-  );
+
+
+function getSelectedMethod() {
+
+  const selected =
+    document.querySelector(
+      'input[name="allocation-method"]:checked'
+    );
+
+
+  return selected.value;
+
+}
+
+
+
+function showSelectedFileInfo() {
+
+  const definition =
+    getSelectedFileDefinition();
+
+
+  fileInfo.textContent =
+    `File ID: ${definition.id}
+File name: ${definition.name}
+Logical file size: ${definition.sizeBytes} bytes`;
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  STORAGE REQUIREMENT
+  --------------------------------------------------
+*/
+
+function showStorageRequirement() {
+
+  const definition =
+    getSelectedFileDefinition();
+
+
+  const file =
+    createFile(definition);
+
+
+  const method =
+    getSelectedMethod();
+
+
+  const requirement =
+    calculateStorageRequirement(
+
+      file,
+
+      method,
+
+      BLOCK_SIZE_BYTES,
+
+      POINTER_SIZE_BYTES
+
+    );
+
+
+  let text =
+    `Method: ${method}
+File size: ${file.sizeBytes} bytes
+Block size: ${BLOCK_SIZE_BYTES} bytes`;
+
+
+  if (
+    method === "CONTIGUOUS"
+  ) {
+
+    text +=
+      `
+
+Usable data per block: ${BLOCK_SIZE_BYTES} bytes
+Required data blocks: ${requirement.requiredDataBlocks}
+Total physical blocks required: ${requirement.totalPhysicalBlocks}`;
+
+  }
+
+
+  if (
+    method === "LINKED"
+  ) {
+
+    text +=
+      `
+
+Pointer size: ${POINTER_SIZE_BYTES} bytes
+Usable data per block: ${requirement.usableBytesPerDataBlock} bytes
+
+Required data blocks:
+ceil(${file.sizeBytes} / ${requirement.usableBytesPerDataBlock})
+= ${requirement.requiredDataBlocks}
+
+Total physical blocks required:
+${requirement.totalPhysicalBlocks}`;
+
+  }
+
+
+  if (
+    method === "INDEXED"
+  ) {
+
+    text +=
+      `
+
+Required data blocks: ${requirement.requiredDataBlocks}
+Index blocks required: ${requirement.indexBlocks}
+
+Total physical blocks required:
+${requirement.totalPhysicalBlocks}`;
+
+  }
+
+
+  storageRequirement.textContent =
+    text;
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  ALLOCATION
+  --------------------------------------------------
+*/
+
+function allocateSelectedFile() {
+
+  const definition =
+    getSelectedFileDefinition();
+
+
+  /*
+    Prevent the same test file
+    from being allocated twice.
+  */
+
+  const alreadyExists =
+    allocatedFiles.some(
+
+      (file) =>
+        file.id ===
+        definition.id
+
+    );
+
 
   if (alreadyExists) {
-    message.textContent = "This file is already allocated.";
+
+    showFailureMessage(
+      `File ${definition.name} is already allocated.`
+    );
+
     return;
+
   }
 
-  const file = createFile(definition, BLOCK_SIZE_BYTES);
 
-  // Lay phuong phap cap phat
-  const selected = document.querySelector(
-    'input[name="allocation-method"]:checked'
-  );
+  const file =
+    createFile(definition);
 
-  if (!selected) {
-    message.textContent = "Please select an allocation method.";
-    return;
-  }
 
-  const method = selected.value;
+  const method =
+    getSelectedMethod();
+
+
+  const requirement =
+    calculateStorageRequirement(
+
+      file,
+
+      method,
+
+      BLOCK_SIZE_BYTES,
+
+      POINTER_SIZE_BYTES
+
+    );
+
 
   let result;
 
-  // Goi thuat toan tuong ung
-  if (method === "CONTIGUOUS") {
-    result = allocateContiguous(file, disk);
-  } else if (method === "LINKED") {
-    result = allocateLinked(file, disk);
-  } else if (method === "INDEXED") {
-    result = allocateIndexed(file, disk);
-  } else {
-    message.textContent = "Invalid allocation method.";
-    return;
+
+  if (
+    method === "CONTIGUOUS"
+  ) {
+
+    result =
+      allocateContiguous(
+        file,
+        disk,
+        requirement
+      );
+
   }
 
-  message.textContent = result.message;
 
-  if (!result.success) return;
+  else if (
+    method === "LINKED"
+  ) {
 
-  allocatedFiles.push(file);
+    result =
+      allocateLinked(
+        file,
+        disk,
+        requirement
+      );
 
-  // Cap nhat giao dien
-  renderAll(file);
-}
+  }
 
-// ===================================
-// 5. XOA FILE
-// ===================================
 
-function deleteFile(fileId) {
-  releaseFile(disk, fileId);
+  else {
 
-  allocatedFiles = allocatedFiles.filter(
-    file => file.id !== fileId
+    result =
+      allocateIndexed(
+        file,
+        disk,
+        requirement
+      );
+
+  }
+
+
+  showAllocationResult(
+    result,
+    file,
+    requirement
   );
 
-  message.textContent = `File ${fileId} deleted.`;
 
-  renderAll();
+  if (
+    !result.success
+  ) {
+
+    return;
+
+  }
+
+
+  allocatedFiles.push(
+    file
+  );
+
+
+  renderEverything();
+
+
+  renderFCB(
+    file
+  );
+
 }
 
-// ===================================
-// 6. RESET O DIA
-// ===================================
 
-function resetSimulator() {
-  disk = createDisk(TOTAL_BLOCKS);
-  allocatedFiles = [];
 
-  message.textContent = "Simulator reset.";
+/*
+  --------------------------------------------------
+  SUCCESS / FAILURE RESULT
+  --------------------------------------------------
+*/
 
-  renderAll();
-}
+function showAllocationResult(
+  result,
+  file,
+  requirement
+) {
 
-// ===================================
-// 7. CAP NHAT GIAO DIEN
-// ===================================
+  allocationResult.className =
+    "result-box";
 
-function renderAll(selectedFile = null) {
 
-  // ---------------------------------
-  // A. HIEN THI VIRTUAL DISK
-  // ---------------------------------
+  /*
+    SUCCESS
+  */
 
-  diskContainer.innerHTML = "";
+  if (result.success) {
 
-  disk.forEach(block => {
-    const element = document.createElement("div");
-
-    element.className = "disk-block";
-
-    // Lay thong tin file so huu block
-    const ownerFile = allocatedFiles.find(
-      file => file.id === block.fileId
+    allocationResult.classList.add(
+      "result-success"
     );
 
-    // Gan mau theo allocation method
-    if (block.status === "USED") {
 
-      element.classList.add("used");
+    allocationResult.textContent =
+      `ALLOCATION SUCCESS
 
-      if (ownerFile) {
-        const methodClass =
-          ownerFile.allocationMethod.toLowerCase();
+File: ${file.name}
+Method: ${result.method}
 
-        element.classList.add(methodClass);
+Data blocks: ${requirement.requiredDataBlocks}
+Physical blocks used: ${requirement.totalPhysicalBlocks}`;
+
+
+    return;
+
+  }
+
+
+  /*
+    FAILURE
+  */
+
+  allocationResult.classList.add(
+    "result-fail"
+  );
+
+
+  let text =
+    `ALLOCATION FAILED
+
+File: ${file.name}
+Method: ${result.method}`;
+
+
+  if (
+    result.method ===
+    "CONTIGUOUS"
+  ) {
+
+    text +=
+      `
+
+Required contiguous blocks:
+${result.requiredBlocks}
+
+Total free blocks:
+${result.freeBlocks}
+
+Largest contiguous free region:
+${result.largestContiguousRegion}
+
+Reason:
+${result.reason}
+
+Disk state was not changed.`;
+
+  }
+
+
+  if (
+    result.method ===
+    "LINKED"
+  ) {
+
+    text +=
+      `
+
+Required data blocks:
+${result.requiredBlocks}
+
+Available free blocks:
+${result.freeBlocks}
+
+Reason:
+${result.reason}
+
+Disk state was not changed.`;
+
+  }
+
+
+  if (
+    result.method ===
+    "INDEXED"
+  ) {
+
+    text +=
+      `
+
+Required data blocks:
+${result.requiredDataBlocks}
+
+Index blocks:
+${result.indexBlocks}
+
+Total required blocks:
+${result.totalRequiredBlocks}
+
+Available free blocks:
+${result.freeBlocks}
+
+Reason:
+${result.reason}
+
+Disk state was not changed.`;
+
+  }
+
+
+  allocationResult.textContent =
+    text;
+
+}
+
+
+
+function showFailureMessage(text) {
+
+  allocationResult.className =
+    "result-box result-fail";
+
+
+  allocationResult.textContent =
+    text;
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  VIRTUAL DISK
+  --------------------------------------------------
+*/
+
+function renderDisk() {
+
+  diskContainer.innerHTML =
+    "";
+
+
+  disk.forEach((block) => {
+
+    const blockElement =
+      document.createElement(
+        "div"
+      );
+
+
+    blockElement.className =
+      "disk-block";
+
+
+    /*
+      Color depending on method.
+    */
+
+    if (
+      block.status === "USED"
+    ) {
+
+      if (
+        block.allocationMethod ===
+        "CONTIGUOUS"
+      ) {
+
+        blockElement.classList.add(
+          "block-contiguous"
+        );
+
       }
 
-      // Index block co mau rieng
-      if (block.kind === "INDEX") {
-        element.classList.add("index");
+
+      if (
+        block.allocationMethod ===
+        "LINKED"
+      ) {
+
+        blockElement.classList.add(
+          "block-linked"
+        );
+
       }
+
+
+      if (
+        block.allocationMethod ===
+        "INDEXED"
+      ) {
+
+        if (
+          block.kind === "INDEX"
+        ) {
+
+          blockElement.classList.add(
+            "block-index"
+          );
+
+        }
+
+        else {
+
+          blockElement.classList.add(
+            "block-indexed"
+          );
+
+        }
+
+      }
+
+
+      if (
+        block.allocationMethod ===
+        "SCENARIO"
+      ) {
+
+        blockElement.classList.add(
+          "block-scenario"
+        );
+
+      }
+
     }
 
-    // Block ID
-    const idLabel = document.createElement("span");
-    idLabel.className = "block-id";
-    idLabel.textContent = block.id;
 
-    // File ID / FREE
-    const ownerLabel = document.createElement("span");
-    ownerLabel.className = "block-owner";
-    ownerLabel.textContent = block.fileId ?? "FREE";
+    const idLabel =
+      document.createElement(
+        "span"
+      );
 
-    element.appendChild(idLabel);
-    element.appendChild(ownerLabel);
 
-    // ---------------------------------
-    // THONG TIN KHI DI CHUOT VAO BLOCK
-    // ---------------------------------
+    idLabel.className =
+      "block-id";
+
+
+    idLabel.textContent =
+      block.id;
+
+
+    const ownerLabel =
+      document.createElement(
+        "span"
+      );
+
+
+    ownerLabel.className =
+      "block-owner";
+
+
+    ownerLabel.textContent =
+      block.fileId ?? "FREE";
+
+
+    blockElement.appendChild(
+      idLabel
+    );
+
+
+    blockElement.appendChild(
+      ownerLabel
+    );
+
+
+    /*
+      Tooltip
+    */
 
     let tooltip =
       `Block ${block.id}
 Status: ${block.status}`;
 
-    if (block.fileId !== null) {
-      tooltip += `\nFile: ${block.fileId}`;
 
-      if (ownerFile) {
-        tooltip +=
-          `\nAllocation Method: ${ownerFile.allocationMethod}`;
-      }
+    if (
+      block.status === "USED"
+    ) {
 
-      tooltip += `\nType: ${block.kind}`;
+      tooltip +=
+        `\nOwner: ${block.fileId}`;
+
+      tooltip +=
+        `\nMethod: ${block.allocationMethod}`;
+
+      tooltip +=
+        `\nType: ${block.kind}`;
+
     }
 
-    // Linked Allocation
-    if (block.nextBlock !== null) {
+
+    if (
+      block.nextBlock !== null
+    ) {
+
       tooltip +=
         `\nNext block: ${block.nextBlock}`;
+
     }
 
-    // Indexed Allocation
-    if (block.kind === "INDEX") {
+
+    if (
+      block.kind === "INDEX"
+    ) {
+
       tooltip +=
-        `\nPointers: ${block.indexEntries.join(", ")}`;
+        `\nIndex entries: ${block.indexEntries.join(", ")}`;
+
     }
 
-    element.title = tooltip;
 
-    diskContainer.appendChild(element);
+    blockElement.title =
+      tooltip;
+
+
+    diskContainer.appendChild(
+      blockElement
+    );
+
   });
 
-  // ---------------------------------
-  // B. THONG KE O DIA
-  // ---------------------------------
+}
 
-  const used = disk.filter(
-    block => block.status === "USED"
-  ).length;
 
-  const free = TOTAL_BLOCKS - used;
+
+/*
+  --------------------------------------------------
+  DISK STATS
+  --------------------------------------------------
+*/
+
+function renderDiskStats() {
+
+  const used =
+    disk.filter(
+
+      (block) =>
+        block.status === "USED"
+
+    ).length;
+
+
+  const free =
+    TOTAL_BLOCKS - used;
+
 
   diskStats.textContent =
-    `Block size: ${BLOCK_SIZE_BYTES} bytes
-Total blocks: ${TOTAL_BLOCKS}
-Disk capacity: ${TOTAL_BLOCKS * BLOCK_SIZE_BYTES} bytes
+    `Total blocks: ${TOTAL_BLOCKS}
+Block size: ${BLOCK_SIZE_BYTES} bytes
+
+Virtual disk capacity:
+${TOTAL_BLOCKS * BLOCK_SIZE_BYTES} bytes
+
 Used blocks: ${used}
 Free blocks: ${free}`;
 
-  // ---------------------------------
-  // C. DANH SACH FILE
-  // ---------------------------------
-
-  fileList.innerHTML = "";
-
-  if (allocatedFiles.length === 0) {
-    fileList.textContent = "No files allocated yet.";
-  }
-
-  allocatedFiles.forEach(file => {
-    const row = document.createElement("div");
-    row.className = "file-row";
-
-    const text = document.createElement("span");
-
-    text.textContent =
-      `${file.name} — ${file.allocationMethod}`;
-
-    const deleteButton = document.createElement("button");
-
-    deleteButton.className = "delete-button";
-    deleteButton.textContent = "Delete";
-
-    deleteButton.addEventListener(
-      "click",
-      () => deleteFile(file.id)
-    );
-
-    row.appendChild(text);
-    row.appendChild(deleteButton);
-
-    fileList.appendChild(row);
-  });
-
-  // ---------------------------------
-  // D. CHI TIET CAP PHAT
-  // ---------------------------------
-
-  if (!selectedFile) {
-    allocationDetails.textContent = "No file selected.";
-    return;
-  }
-
-  const file = selectedFile;
-
-  let details =
-    `File: ${file.name}
-File size: ${file.sizeBytes} bytes
-Required data blocks: ${file.requiredDataBlocks}
-Method: ${file.allocationMethod}`;
-
-  // Contiguous
-  if (file.allocationMethod === "CONTIGUOUS") {
-    details +=
-      `\nStart block: ${file.startBlock}`;
-
-    details +=
-      `\nData blocks: ${file.dataBlocks.join(", ")}`;
-  }
-
-  // Linked
-  if (file.allocationMethod === "LINKED") {
-    details +=
-      `\nStart block: ${file.startBlock}`;
-
-    details +=
-      `\nEnd block: ${file.endBlock}`;
-
-    details +=
-      `\nBlock chain: ${file.dataBlocks.join(" → ")}`;
-  }
-
-  // Indexed
-  if (file.allocationMethod === "INDEXED") {
-    details +=
-      `\nIndex block: ${file.indexBlock}`;
-
-    details +=
-      `\nData blocks: ${file.dataBlocks.join(", ")}`;
-
-    details +=
-      `\nPhysical blocks used: ${file.requiredDataBlocks + 1}`;
-  }
-
-  allocationDetails.textContent = details;
 }
 
-// ===================================
-// 8. KHOI DONG CHUONG TRINH
-// ===================================
 
-// Dua file mau vao dropdown
-TEST_FILES.forEach(file => {
-  const option = document.createElement("option");
 
-  option.value = file.id;
+/*
+  --------------------------------------------------
+  FREE-SPACE BITMAP
+  --------------------------------------------------
 
-  option.textContent =
-    `${file.name} (${file.sizeBytes} bytes)`;
+  Following the simulator convention:
 
-  fileSelect.appendChild(option);
-});
+  1 = FREE
+  0 = USED
+*/
 
-// Chon file
+function renderFreeSpaceBitmap() {
+
+  const bits =
+    disk.map(
+
+      (block) =>
+        block.status === "FREE"
+          ? "1"
+          : "0"
+
+    );
+
+
+  const rows = [];
+
+
+  for (
+    let i = 0;
+    i < bits.length;
+    i += 20
+  ) {
+
+    rows.push(
+
+      bits
+        .slice(i, i + 20)
+        .join(" ")
+
+    );
+
+  }
+
+
+  bitmap.textContent =
+    rows.join("\n");
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  FILE CONTROL BLOCK
+  --------------------------------------------------
+*/
+
+function renderFCB(file) {
+
+  let text =
+    `File ID: ${file.id}
+File name: ${file.name}
+File size: ${file.sizeBytes} bytes
+Allocation method: ${file.allocationMethod}`;
+
+
+  if (
+    file.allocationMethod ===
+    "CONTIGUOUS"
+  ) {
+
+    text +=
+      `
+
+Start block: ${file.startBlock}
+Length: ${file.requiredDataBlocks} blocks`;
+
+  }
+
+
+  if (
+    file.allocationMethod ===
+    "LINKED"
+  ) {
+
+    text +=
+      `
+
+First block: ${file.startBlock}
+Last block: ${file.endBlock}`;
+
+  }
+
+
+  if (
+    file.allocationMethod ===
+    "INDEXED"
+  ) {
+
+    text +=
+      `
+
+Index block: ${file.indexBlock}`;
+
+  }
+
+
+  fcbPanel.textContent =
+    text;
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  FILE LIST
+  --------------------------------------------------
+*/
+
+function renderFileList() {
+
+  fileList.innerHTML =
+    "";
+
+
+  if (
+    allocatedFiles.length === 0
+  ) {
+
+    fileList.textContent =
+      "No user files allocated yet.";
+
+    return;
+
+  }
+
+
+  allocatedFiles.forEach(
+    (file) => {
+
+      const row =
+        document.createElement(
+          "div"
+        );
+
+
+      row.className =
+        "file-row";
+
+
+      const text =
+        document.createElement(
+          "div"
+        );
+
+
+      text.className =
+        "file-info-line";
+
+
+      text.textContent =
+        `${file.name}
+${file.allocationMethod}
+${file.totalPhysicalBlocks} physical block(s)`;
+
+
+      const deleteButton =
+        document.createElement(
+          "button"
+        );
+
+
+      deleteButton.className =
+        "delete-button";
+
+
+      deleteButton.textContent =
+        "Delete";
+
+
+      deleteButton.addEventListener(
+        "click",
+        () =>
+          deleteFile(file.id)
+      );
+
+
+      row.appendChild(
+        text
+      );
+
+
+      row.appendChild(
+        deleteButton
+      );
+
+
+      fileList.appendChild(
+        row
+      );
+
+    }
+  );
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  DELETE FILE
+  --------------------------------------------------
+*/
+
+function deleteFile(fileId) {
+
+  const file =
+    allocatedFiles.find(
+
+      (item) =>
+        item.id === fileId
+
+    );
+
+
+  releaseFile(
+    disk,
+    fileId
+  );
+
+
+  allocatedFiles =
+    allocatedFiles.filter(
+
+      (item) =>
+        item.id !== fileId
+
+    );
+
+
+  allocationResult.className =
+    "result-box";
+
+
+  allocationResult.textContent =
+    `File ${file?.name ?? fileId} deleted.
+
+Its blocks were released.`;
+
+
+  fcbPanel.textContent =
+    "No allocated file selected.";
+
+
+  renderEverything();
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  FRAGMENTATION SCENARIO
+  --------------------------------------------------
+*/
+
+function loadFragmentationScenario() {
+
+  disk =
+    createDisk(
+      TOTAL_BLOCKS
+    );
+
+
+  allocatedFiles = [];
+
+
+  createFragmentationScenario(
+    disk
+  );
+
+
+  allocationResult.className =
+    "result-box";
+
+
+  allocationResult.textContent =
+    `Fragmentation scenario loaded.
+
+The disk still contains free blocks,
+but the free space is divided into
+small non-contiguous regions.
+
+Try allocating a larger test file
+with different allocation methods.`;
+
+
+  fcbPanel.textContent =
+    "No allocated file selected.";
+
+
+  renderEverything();
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  RESET
+  --------------------------------------------------
+*/
+
+function resetSimulator() {
+
+  disk =
+    createDisk(
+      TOTAL_BLOCKS
+    );
+
+
+  allocatedFiles = [];
+
+
+  allocationResult.className =
+    "result-box";
+
+
+  allocationResult.textContent =
+    "Simulator reset.";
+
+
+  fcbPanel.textContent =
+    "No allocated file selected.";
+
+
+  renderEverything();
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  RENDER ALL
+  --------------------------------------------------
+*/
+
+function renderEverything() {
+
+  renderDisk();
+
+  renderDiskStats();
+
+  renderFreeSpaceBitmap();
+
+  renderFileList();
+
+}
+
+
+
+/*
+  --------------------------------------------------
+  EVENTS
+  --------------------------------------------------
+*/
+
 fileSelect.addEventListener(
   "change",
-  showSelectedFileInfo
+  () => {
+
+    showSelectedFileInfo();
+
+    showStorageRequirement();
+
+  }
 );
 
-// Nhan nut Allocate
+
+document
+  .querySelectorAll(
+    'input[name="allocation-method"]'
+  )
+  .forEach((radio) => {
+
+    radio.addEventListener(
+      "change",
+      showStorageRequirement
+    );
+
+  });
+
+
 allocateButton.addEventListener(
   "click",
-  allocateFile
+  allocateSelectedFile
 );
 
-// Nhan nut Reset
+
+fragmentButton.addEventListener(
+  "click",
+  loadFragmentationScenario
+);
+
+
 resetButton.addEventListener(
   "click",
   resetSimulator
 );
 
-// Hien thi ban dau
+
+
+/*
+  --------------------------------------------------
+  INITIALIZE
+  --------------------------------------------------
+*/
+
+populateFileSelect();
+
 showSelectedFileInfo();
-renderAll();
+
+showStorageRequirement();
+
+renderEverything();
