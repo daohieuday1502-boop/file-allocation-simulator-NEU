@@ -1,53 +1,148 @@
+import {
+  getFreeBlocks
+} from "../core/disk.js";
 
-import { getFreeBlocks } from "../core/disk.js";
 
-export function allocateIndexed(file, disk) {
-  const needed = file.requiredDataBlocks;
-  const freeBlocks = getFreeBlocks(disk);
+export function allocateIndexed(
+  file,
+  disk,
+  requirement
+) {
 
-  // Can 1 index block va N data block
-  if (freeBlocks.length < needed + 1) {
+  const dataBlocksNeeded =
+    requirement.requiredDataBlocks;
+
+
+  const totalBlocksNeeded =
+    requirement.totalPhysicalBlocks;
+
+
+  const freeBlocks =
+    getFreeBlocks(disk);
+
+
+  if (
+    freeBlocks.length <
+    totalBlocksNeeded
+  ) {
+
     return {
+
       success: false,
-      message: "Indexed Allocation failed: not enough free blocks."
+
+      method: "INDEXED",
+
+      requiredDataBlocks:
+        dataBlocksNeeded,
+
+      indexBlocks: 1,
+
+      totalRequiredBlocks:
+        totalBlocksNeeded,
+
+      freeBlocks:
+        freeBlocks.length,
+
+      reason:
+        "Not enough free blocks for the index block and data blocks."
+
     };
+
   }
 
-  // Chon index block dau tien
-  const indexBlock = freeBlocks[0];
 
-  // Chon data block tu cac block trong con lai
-  const available = freeBlocks.slice(1);
-  const dataBlocks = [];
+  /*
+    First FREE block becomes
+    the Index Block.
+  */
 
-  for (let i = 0; i < needed; i++) {
-    const index = Math.floor(
-      (i + 0.5) * available.length / needed
+  const indexBlock =
+    freeBlocks[0];
+
+
+  /*
+    Remaining blocks are
+    Data Blocks.
+  */
+
+  const dataBlocks =
+    freeBlocks.slice(
+      1,
+      dataBlocksNeeded + 1
     );
-    dataBlocks.push(available[index]);
-  }
 
-  const dataBlockIds = dataBlocks.map(block => block.id);
 
-  // Luu bang dia chi vao index block
+  const dataBlockIds =
+    dataBlocks.map(
+      (block) => block.id
+    );
+
+
   indexBlock.status = "USED";
-  indexBlock.fileId = file.id;
+
+  indexBlock.fileId =
+    file.id;
+
+  indexBlock.allocationMethod =
+    "INDEXED";
+
   indexBlock.kind = "INDEX";
-  indexBlock.indexEntries = dataBlockIds;
 
-  // Danh dau cac data block
-  dataBlocks.forEach(block => {
-    block.status = "USED";
-    block.fileId = file.id;
-    block.kind = "DATA";
-  });
+  indexBlock.indexEntries =
+    dataBlockIds;
 
-  file.allocationMethod = "INDEXED";
-  file.indexBlock = indexBlock.id;
-  file.dataBlocks = dataBlockIds;
+
+  dataBlocks.forEach(
+    (block) => {
+
+      block.status = "USED";
+
+      block.fileId =
+        file.id;
+
+      block.allocationMethod =
+        "INDEXED";
+
+      block.kind = "DATA";
+
+    }
+  );
+
+
+  file.allocationMethod =
+    "INDEXED";
+
+  file.requiredDataBlocks =
+    dataBlocksNeeded;
+
+  file.totalPhysicalBlocks =
+    totalBlocksNeeded;
+
+  file.usableBytesPerDataBlock =
+    requirement.usableBytesPerDataBlock;
+
+  file.indexBlock =
+    indexBlock.id;
+
+  file.dataBlocks =
+    dataBlockIds;
+
 
   return {
+
     success: true,
-    message: `Allocated 1 index block + ${needed} data blocks.`
+
+    method: "INDEXED",
+
+    indexBlock:
+      indexBlock.id,
+
+    allocatedBlocks:
+      dataBlockIds,
+
+    message:
+      "Indexed allocation completed successfully."
+
   };
+
 }
