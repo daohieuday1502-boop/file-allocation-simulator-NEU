@@ -31,8 +31,6 @@
     </header>
 
 
-    <!-- FILE SELECTION -->
-
     <section class="panel">
 
       <h2>1. Select Test File</h2>
@@ -46,8 +44,6 @@
 
     </section>
 
-
-    <!-- METHOD -->
 
     <section class="panel">
 
@@ -88,8 +84,6 @@
     </section>
 
 
-    <!-- STORAGE REQUIREMENT -->
-
     <section class="panel">
 
       <h2>3. Storage Requirement</h2>
@@ -102,11 +96,9 @@
     </section>
 
 
-    <!-- CONTROLS -->
-
     <section class="panel">
 
-      <h2>4. Simulation Controls</h2>
+      <h2>4. Simulation</h2>
 
       <div class="buttons">
 
@@ -118,7 +110,7 @@
         </button>
 
         <button id="fragment-button">
-          Load Fragmentation Scenario
+          Load Fragmented Disk
         </button>
 
         <button id="reset-button">
@@ -136,8 +128,6 @@
 
     </section>
 
-
-    <!-- DISK -->
 
     <section class="panel">
 
@@ -175,19 +165,16 @@
           Index Block
         </span>
 
-        <span>
-          <i class="legend-box scenario"></i>
-          Existing Data
-        </span>
-
       </div>
+
+      <p class="small-note">
+        Click a block to inspect its metadata.
+      </p>
 
       <div id="disk-container"></div>
 
     </section>
 
-
-    <!-- BITMAP -->
 
     <section class="panel">
 
@@ -202,23 +189,39 @@
     </section>
 
 
-    <!-- FCB -->
-
     <section class="panel">
 
-      <h2>7. File Control Block</h2>
+      <h2>7. Block & File Metadata</h2>
 
-      <div
-        id="fcb-panel"
-        class="info-box"
-      >
-        No allocated file selected.
+      <div class="metadata-grid">
+
+        <div>
+          <h3>Selected Block</h3>
+
+          <div
+            id="block-details"
+            class="info-box"
+          >
+            Click a block to inspect it.
+          </div>
+        </div>
+
+
+        <div>
+          <h3>File Control Block</h3>
+
+          <div
+            id="fcb-panel"
+            class="info-box"
+          >
+            No file selected.
+          </div>
+        </div>
+
       </div>
 
     </section>
 
-
-    <!-- FILE LIST -->
 
     <section class="panel">
 
@@ -235,7 +238,7 @@
 
   <script
     type="module"
-    src="js/app.js?v=10"
+    src="js/app.js?v=11"
   ></script>
 
 </body>
