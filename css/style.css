@@ -43,6 +43,12 @@ body {
   font-size: 20px;
 }
 
+.panel h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
 
 /* INPUT */
 
@@ -93,7 +99,7 @@ button:hover {
   border: 1px solid #e1e1e1;
   border-radius: 5px;
   white-space: pre-line;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .small-note {
@@ -144,12 +150,24 @@ button:hover {
 
   display: flex;
   flex-direction: column;
+
   align-items: center;
   justify-content: center;
 
   font-size: 11px;
 
   background-color: #eeeeee;
+
+  cursor: pointer;
+}
+
+.disk-block:hover {
+  outline: 2px solid #555;
+}
+
+.disk-block.selected {
+  outline: 3px solid #111;
+  outline-offset: 1px;
 }
 
 .block-id {
@@ -181,10 +199,6 @@ button:hover {
 .block-index {
   background-color: #ffc9c9;
   border: 3px solid #8d1d1d;
-}
-
-.block-scenario {
-  background-color: #cfcfcf;
 }
 
 
@@ -232,20 +246,19 @@ button:hover {
   border: 2px solid #8d1d1d;
 }
 
-.legend-box.scenario {
-  background: #cfcfcf;
-}
-
 
 /* BITMAP */
 
 #bitmap {
   font-family: Consolas, monospace;
+
   line-height: 1.8;
+
   overflow-wrap: anywhere;
   word-break: break-all;
 
   padding: 12px;
+
   background: #111;
   color: #f0f0f0;
 
@@ -253,15 +266,33 @@ button:hover {
 }
 
 
+/* METADATA */
+
+.metadata-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 18px;
+}
+
+
 /* FILE LIST */
 
 .file-row {
   padding: 12px 0;
-  border-bottom: 1px solid #ddd;
+
+  border-bottom:
+    1px solid #ddd;
 
   display: flex;
+
   align-items: center;
-  justify-content: space-between;
+
+  justify-content:
+    space-between;
+
   gap: 15px;
 }
 
@@ -271,6 +302,7 @@ button:hover {
 
 .file-info-line {
   flex: 1;
+  white-space: pre-line;
 }
 
 .delete-button {
@@ -287,7 +319,12 @@ button:hover {
   }
 
   #disk-container {
-    grid-template-columns: repeat(10, minmax(25px, 1fr));
+    grid-template-columns:
+      repeat(
+        10,
+        minmax(25px, 1fr)
+      );
+
     gap: 3px;
   }
 
@@ -302,6 +339,10 @@ button:hover {
   select {
     width: 100%;
     min-width: 0;
+  }
+
+  .metadata-grid {
+    grid-template-columns: 1fr;
   }
 
 }
