@@ -4,13 +4,15 @@ import {
 
   releaseFile,
 
-  createFragmentationScenario,
-
   TOTAL_BLOCKS,
 
   BLOCK_SIZE_BYTES,
 
-  POINTER_SIZE_BYTES
+  POINTER_SIZE_BYTES,
+
+  countFreeBlocks,
+
+  getLargestContiguousFreeRegion
 
 } from "./core/disk.js";
 
@@ -47,17 +49,9 @@ import {
 
 
 /*
-  --------------------------------------------------
+  ==================================================
   TEST FILES
-  --------------------------------------------------
-
-  These are simulated files.
-
-  Their sizes are stored in bytes.
-
-  Some files are intentionally larger
-  so they can be used for allocation
-  failure demonstrations.
+  ==================================================
 */
 
 const TEST_FILES = [
@@ -82,7 +76,7 @@ const TEST_FILES = [
 
   {
     id: "F04",
-    name: "boundary-test.bin",
+    name: "diagram.png",
     sizeBytes: 20470
   },
 
@@ -106,13 +100,13 @@ const TEST_FILES = [
 
   {
     id: "F08",
-    name: "large-test.bin",
+    name: "database.db",
     sizeBytes: 32768
   },
 
   {
     id: "F09",
-    name: "very-large-test.bin",
+    name: "video-clip.mp4",
     sizeBytes: 120000
   }
 
@@ -121,9 +115,88 @@ const TEST_FILES = [
 
 
 /*
-  --------------------------------------------------
+  ==================================================
+  FRAGMENTED DISK SCENARIO
+  ==================================================
+
+  These are actual simulated files.
+
+  Each one already occupies a
+  contiguous region.
+
+  The gaps between files represent
+  free regions created by previous
+  file deletion / disk usage.
+
+  Largest free region = 5 blocks.
+*/
+
+const SCENARIO_FILES = [
+
+  {
+    id: "S01",
+    name: "assignment.pdf",
+    startBlock: 0,
+    endBlock: 7
+  },
+
+  {
+    id: "S02",
+    name: "project.zip",
+    startBlock: 13,
+    endBlock: 20
+  },
+
+  {
+    id: "S03",
+    name: "records.csv",
+    startBlock: 26,
+    endBlock: 34
+  },
+
+  {
+    id: "S04",
+    name: "presentation.pptx",
+    startBlock: 40,
+    endBlock: 47
+  },
+
+  {
+    id: "S05",
+    name: "images.zip",
+    startBlock: 53,
+    endBlock: 61
+  },
+
+  {
+    id: "S06",
+    name: "source-code.zip",
+    startBlock: 67,
+    endBlock: 74
+  },
+
+  {
+    id: "S07",
+    name: "lecture-notes.pdf",
+    startBlock: 80,
+    endBlock: 88
+  },
+
+  {
+    id: "S08",
+    name: "backup.dat",
+    startBlock: 94,
+    endBlock: 99
+  }
+
+];
+
+
+
+/*
+  ==================================================
   GLOBAL STATE
-  --------------------------------------------------
+  ==================================================
 */
 
 let disk =
@@ -133,11 +206,14 @@ let disk =
 let allocatedFiles = [];
 
 
+let selectedBlockId = null;
+
+
 
 /*
-  --------------------------------------------------
+  ==================================================
   HTML ELEMENTS
-  --------------------------------------------------
+  ==================================================
 */
 
 const fileSelect =
@@ -200,6 +276,12 @@ const bitmap =
   );
 
 
+const blockDetails =
+  document.getElementById(
+    "block-details"
+  );
+
+
 const fcbPanel =
   document.getElementById(
     "fcb-panel"
@@ -214,9 +296,9 @@ const fileList =
 
 
 /*
-  --------------------------------------------------
+  ==================================================
   FILE SELECT
-  --------------------------------------------------
+  ==================================================
 */
 
 function populateFileSelect() {
@@ -284,16 +366,16 @@ function showSelectedFileInfo() {
   fileInfo.textContent =
     `File ID: ${definition.id}
 File name: ${definition.name}
-Logical file size: ${definition.sizeBytes} bytes`;
+File size: ${definition.sizeBytes} bytes`;
 
 }
 
 
 
 /*
-  --------------------------------------------------
+  ==================================================
   STORAGE REQUIREMENT
-  --------------------------------------------------
+  ==================================================
 */
 
 function showStorageRequirement() {
@@ -336,10 +418,9 @@ Block size: ${BLOCK_SIZE_BYTES} bytes`;
 
     text +=
       `
-
-Usable data per block: ${BLOCK_SIZE_BYTES} bytes
-Required data blocks: ${requirement.requiredDataBlocks}
-Total physical blocks required: ${requirement.totalPhysicalBlocks}`;
+Usable data/block: ${BLOCK_SIZE_BYTES} bytes
+Data blocks required: ${requirement.requiredDataBlocks}
+Physical blocks required: ${requirement.totalPhysicalBlocks}`;
 
   }
 
@@ -350,16 +431,10 @@ Total physical blocks required: ${requirement.totalPhysicalBlocks}`;
 
     text +=
       `
-
 Pointer size: ${POINTER_SIZE_BYTES} bytes
-Usable data per block: ${requirement.usableBytesPerDataBlock} bytes
-
-Required data blocks:
-ceil(${file.sizeBytes} / ${requirement.usableBytesPerDataBlock})
-= ${requirement.requiredDataBlocks}
-
-Total physical blocks required:
-${requirement.totalPhysicalBlocks}`;
+Usable data/block: ${requirement.usableBytesPerDataBlock} bytes
+Data blocks required: ${requirement.requiredDataBlocks}
+Physical blocks required: ${requirement.totalPhysicalBlocks}`;
 
   }
 
@@ -370,12 +445,9 @@ ${requirement.totalPhysicalBlocks}`;
 
     text +=
       `
-
-Required data blocks: ${requirement.requiredDataBlocks}
+Data blocks required: ${requirement.requiredDataBlocks}
 Index blocks required: ${requirement.indexBlocks}
-
-Total physical blocks required:
-${requirement.totalPhysicalBlocks}`;
+Physical blocks required: ${requirement.totalPhysicalBlocks}`;
 
   }
 
@@ -388,9 +460,9 @@ ${requirement.totalPhysicalBlocks}`;
 
 
 /*
-  --------------------------------------------------
+  ==================================================
   ALLOCATION
-  --------------------------------------------------
+  ==================================================
 */
 
 function allocateSelectedFile() {
@@ -398,11 +470,6 @@ function allocateSelectedFile() {
   const definition =
     getSelectedFileDefinition();
 
-
-  /*
-    Prevent the same test file
-    from being allocated twice.
-  */
 
   const alreadyExists =
     allocatedFiles.some(
@@ -416,8 +483,8 @@ function allocateSelectedFile() {
 
   if (alreadyExists) {
 
-    showFailureMessage(
-      `File ${definition.name} is already allocated.`
+    showSimpleFailure(
+      `${definition.name} is already allocated.`
     );
 
     return;
@@ -514,18 +581,16 @@ function allocateSelectedFile() {
   renderEverything();
 
 
-  renderFCB(
-    file
-  );
+  renderFCB(file);
 
 }
 
 
 
 /*
-  --------------------------------------------------
-  SUCCESS / FAILURE RESULT
-  --------------------------------------------------
+  ==================================================
+  RESULT
+  ==================================================
 */
 
 function showAllocationResult(
@@ -538,10 +603,6 @@ function showAllocationResult(
     "result-box";
 
 
-  /*
-    SUCCESS
-  */
-
   if (result.success) {
 
     allocationResult.classList.add(
@@ -551,10 +612,8 @@ function showAllocationResult(
 
     allocationResult.textContent =
       `ALLOCATION SUCCESS
-
 File: ${file.name}
 Method: ${result.method}
-
 Data blocks: ${requirement.requiredDataBlocks}
 Physical blocks used: ${requirement.totalPhysicalBlocks}`;
 
@@ -564,10 +623,6 @@ Physical blocks used: ${requirement.totalPhysicalBlocks}`;
   }
 
 
-  /*
-    FAILURE
-  */
-
   allocationResult.classList.add(
     "result-fail"
   );
@@ -575,7 +630,6 @@ Physical blocks used: ${requirement.totalPhysicalBlocks}`;
 
   let text =
     `ALLOCATION FAILED
-
 File: ${file.name}
 Method: ${result.method}`;
 
@@ -587,20 +641,10 @@ Method: ${result.method}`;
 
     text +=
       `
-
-Required contiguous blocks:
-${result.requiredBlocks}
-
-Total free blocks:
-${result.freeBlocks}
-
-Largest contiguous free region:
-${result.largestContiguousRegion}
-
-Reason:
-${result.reason}
-
-Disk state was not changed.`;
+Required blocks: ${result.requiredBlocks}
+Free blocks: ${result.freeBlocks}
+Largest contiguous region: ${result.largestContiguousRegion}
+No suitable contiguous region. Disk unchanged.`;
 
   }
 
@@ -612,17 +656,9 @@ Disk state was not changed.`;
 
     text +=
       `
-
-Required data blocks:
-${result.requiredBlocks}
-
-Available free blocks:
-${result.freeBlocks}
-
-Reason:
-${result.reason}
-
-Disk state was not changed.`;
+Required blocks: ${result.requiredBlocks}
+Free blocks: ${result.freeBlocks}
+Not enough free blocks. Disk unchanged.`;
 
   }
 
@@ -634,23 +670,11 @@ Disk state was not changed.`;
 
     text +=
       `
-
-Required data blocks:
-${result.requiredDataBlocks}
-
-Index blocks:
-${result.indexBlocks}
-
-Total required blocks:
-${result.totalRequiredBlocks}
-
-Available free blocks:
-${result.freeBlocks}
-
-Reason:
-${result.reason}
-
-Disk state was not changed.`;
+Data blocks required: ${result.requiredDataBlocks}
+Index blocks required: ${result.indexBlocks}
+Total blocks required: ${result.totalRequiredBlocks}
+Free blocks: ${result.freeBlocks}
+Not enough free blocks. Disk unchanged.`;
 
   }
 
@@ -662,23 +686,24 @@ Disk state was not changed.`;
 
 
 
-function showFailureMessage(text) {
+function showSimpleFailure(text) {
 
   allocationResult.className =
     "result-box result-fail";
 
 
   allocationResult.textContent =
-    text;
+    `ALLOCATION FAILED
+${text}`;
 
 }
 
 
 
 /*
-  --------------------------------------------------
-  VIRTUAL DISK
-  --------------------------------------------------
+  ==================================================
+  DISK
+  ==================================================
 */
 
 function renderDisk() {
@@ -699,9 +724,17 @@ function renderDisk() {
       "disk-block";
 
 
-    /*
-      Color depending on method.
-    */
+    if (
+      block.id ===
+      selectedBlockId
+    ) {
+
+      blockElement.classList.add(
+        "selected"
+      );
+
+    }
+
 
     if (
       block.status === "USED"
@@ -756,18 +789,6 @@ function renderDisk() {
 
       }
 
-
-      if (
-        block.allocationMethod ===
-        "SCENARIO"
-      ) {
-
-        blockElement.classList.add(
-          "block-scenario"
-        );
-
-      }
-
     }
 
 
@@ -809,53 +830,11 @@ function renderDisk() {
     );
 
 
-    /*
-      Tooltip
-    */
-
-    let tooltip =
-      `Block ${block.id}
-Status: ${block.status}`;
-
-
-    if (
-      block.status === "USED"
-    ) {
-
-      tooltip +=
-        `\nOwner: ${block.fileId}`;
-
-      tooltip +=
-        `\nMethod: ${block.allocationMethod}`;
-
-      tooltip +=
-        `\nType: ${block.kind}`;
-
-    }
-
-
-    if (
-      block.nextBlock !== null
-    ) {
-
-      tooltip +=
-        `\nNext block: ${block.nextBlock}`;
-
-    }
-
-
-    if (
-      block.kind === "INDEX"
-    ) {
-
-      tooltip +=
-        `\nIndex entries: ${block.indexEntries.join(", ")}`;
-
-    }
-
-
-    blockElement.title =
-      tooltip;
+    blockElement.addEventListener(
+      "click",
+      () =>
+        selectBlock(block.id)
+    );
 
 
     diskContainer.appendChild(
@@ -869,9 +848,137 @@ Status: ${block.status}`;
 
 
 /*
-  --------------------------------------------------
+  ==================================================
+  BLOCK DETAILS
+  ==================================================
+*/
+
+function selectBlock(blockId) {
+
+  selectedBlockId =
+    blockId;
+
+
+  const block =
+    disk[blockId];
+
+
+  renderBlockDetails(
+    block
+  );
+
+
+  /*
+    If this block belongs to a file,
+    show that file's FCB.
+  */
+
+  if (
+    block.fileId !== null
+  ) {
+
+    const file =
+      allocatedFiles.find(
+
+        (item) =>
+          item.id ===
+          block.fileId
+
+      );
+
+
+    if (file) {
+
+      renderFCB(file);
+
+    }
+
+  }
+
+  else {
+
+    fcbPanel.textContent =
+      "This block is FREE and does not belong to a file.";
+
+  }
+
+
+  renderDisk();
+
+}
+
+
+
+function renderBlockDetails(block) {
+
+  let text =
+    `Block ID: ${block.id}
+Status: ${block.status}`;
+
+
+  if (
+    block.status === "FREE"
+  ) {
+
+    blockDetails.textContent =
+      text;
+
+    return;
+
+  }
+
+
+  const file =
+    allocatedFiles.find(
+
+      (item) =>
+        item.id ===
+        block.fileId
+
+    );
+
+
+  text +=
+    `
+File ID: ${block.fileId}
+File name: ${file?.name ?? "Unknown"}
+Block type: ${block.kind}
+Method: ${block.allocationMethod}`;
+
+
+  if (
+    block.nextBlock !== null
+  ) {
+
+    text +=
+      `
+Next block: ${block.nextBlock}`;
+
+  }
+
+
+  if (
+    block.kind === "INDEX"
+  ) {
+
+    text +=
+      `
+Index entries: ${block.indexEntries.join(", ")}`;
+
+  }
+
+
+  blockDetails.textContent =
+    text;
+
+}
+
+
+
+/*
+  ==================================================
   DISK STATS
-  --------------------------------------------------
+  ==================================================
 */
 
 function renderDiskStats() {
@@ -889,29 +996,28 @@ function renderDiskStats() {
     TOTAL_BLOCKS - used;
 
 
+  const largestRegion =
+    getLargestContiguousFreeRegion(
+      disk
+    );
+
+
   diskStats.textContent =
     `Total blocks: ${TOTAL_BLOCKS}
 Block size: ${BLOCK_SIZE_BYTES} bytes
-
-Virtual disk capacity:
-${TOTAL_BLOCKS * BLOCK_SIZE_BYTES} bytes
-
+Disk capacity: ${TOTAL_BLOCKS * BLOCK_SIZE_BYTES} bytes
 Used blocks: ${used}
-Free blocks: ${free}`;
+Free blocks: ${free}
+Largest contiguous free region: ${largestRegion} blocks`;
 
 }
 
 
 
 /*
-  --------------------------------------------------
+  ==================================================
   FREE-SPACE BITMAP
-  --------------------------------------------------
-
-  Following the simulator convention:
-
-  1 = FREE
-  0 = USED
+  ==================================================
 */
 
 function renderFreeSpaceBitmap() {
@@ -955,9 +1061,9 @@ function renderFreeSpaceBitmap() {
 
 
 /*
-  --------------------------------------------------
+  ==================================================
   FILE CONTROL BLOCK
-  --------------------------------------------------
+  ==================================================
 */
 
 function renderFCB(file) {
@@ -976,7 +1082,6 @@ Allocation method: ${file.allocationMethod}`;
 
     text +=
       `
-
 Start block: ${file.startBlock}
 Length: ${file.requiredDataBlocks} blocks`;
 
@@ -990,7 +1095,6 @@ Length: ${file.requiredDataBlocks} blocks`;
 
     text +=
       `
-
 First block: ${file.startBlock}
 Last block: ${file.endBlock}`;
 
@@ -1004,7 +1108,6 @@ Last block: ${file.endBlock}`;
 
     text +=
       `
-
 Index block: ${file.indexBlock}`;
 
   }
@@ -1018,9 +1121,9 @@ Index block: ${file.indexBlock}`;
 
 
 /*
-  --------------------------------------------------
+  ==================================================
   FILE LIST
-  --------------------------------------------------
+  ==================================================
 */
 
 function renderFileList() {
@@ -1034,7 +1137,7 @@ function renderFileList() {
   ) {
 
     fileList.textContent =
-      "No user files allocated yet.";
+      "No files allocated yet.";
 
     return;
 
@@ -1065,9 +1168,8 @@ function renderFileList() {
 
 
       text.textContent =
-        `${file.name}
-${file.allocationMethod}
-${file.totalPhysicalBlocks} physical block(s)`;
+        `${file.id} — ${file.name}
+${file.allocationMethod} — ${file.totalPhysicalBlocks} block(s)`;
 
 
       const deleteButton =
@@ -1113,9 +1215,9 @@ ${file.totalPhysicalBlocks} physical block(s)`;
 
 
 /*
-  --------------------------------------------------
-  DELETE FILE
-  --------------------------------------------------
+  ==================================================
+  DELETE
+  ==================================================
 */
 
 function deleteFile(fileId) {
@@ -1144,18 +1246,25 @@ function deleteFile(fileId) {
     );
 
 
+  selectedBlockId =
+    null;
+
+
   allocationResult.className =
     "result-box";
 
 
   allocationResult.textContent =
-    `File ${file?.name ?? fileId} deleted.
+    `File deleted: ${file?.name ?? fileId}
+Released blocks are now FREE.`;
 
-Its blocks were released.`;
+
+  blockDetails.textContent =
+    "Click a block to inspect it.";
 
 
   fcbPanel.textContent =
-    "No allocated file selected.";
+    "No file selected.";
 
 
   renderEverything();
@@ -1165,12 +1274,12 @@ Its blocks were released.`;
 
 
 /*
-  --------------------------------------------------
-  FRAGMENTATION SCENARIO
-  --------------------------------------------------
+  ==================================================
+  FRAGMENTED DISK
+  ==================================================
 */
 
-function loadFragmentationScenario() {
+function loadFragmentedDisk() {
 
   disk =
     createDisk(
@@ -1181,8 +1290,18 @@ function loadFragmentationScenario() {
   allocatedFiles = [];
 
 
-  createFragmentationScenario(
-    disk
+  selectedBlockId =
+    null;
+
+
+  SCENARIO_FILES.forEach(
+    (definition) => {
+
+      addScenarioFile(
+        definition
+      );
+
+    }
   );
 
 
@@ -1191,18 +1310,18 @@ function loadFragmentationScenario() {
 
 
   allocationResult.textContent =
-    `Fragmentation scenario loaded.
+    `FRAGMENTED DISK LOADED
+Files on disk: ${SCENARIO_FILES.length}
+Free blocks: ${countFreeBlocks(disk)}
+Largest contiguous free region: ${getLargestContiguousFreeRegion(disk)} blocks`;
 
-The disk still contains free blocks,
-but the free space is divided into
-small non-contiguous regions.
 
-Try allocating a larger test file
-with different allocation methods.`;
+  blockDetails.textContent =
+    "Click a block to inspect it.";
 
 
   fcbPanel.textContent =
-    "No allocated file selected.";
+    "Select a used block to view its file metadata.";
 
 
   renderEverything();
@@ -1212,9 +1331,102 @@ with different allocation methods.`;
 
 
 /*
-  --------------------------------------------------
+  Add one real simulated file
+  into the fragmented disk snapshot.
+*/
+
+function addScenarioFile(
+  definition
+) {
+
+  const blockCount =
+    definition.endBlock -
+    definition.startBlock +
+    1;
+
+
+  const dataBlocks = [];
+
+
+  for (
+    let i =
+      definition.startBlock;
+
+    i <=
+      definition.endBlock;
+
+    i++
+  ) {
+
+    disk[i].status =
+      "USED";
+
+    disk[i].fileId =
+      definition.id;
+
+    disk[i].allocationMethod =
+      "CONTIGUOUS";
+
+    disk[i].kind =
+      "DATA";
+
+
+    dataBlocks.push(i);
+
+  }
+
+
+  const file = {
+
+    id:
+      definition.id,
+
+    name:
+      definition.name,
+
+    sizeBytes:
+      blockCount *
+      BLOCK_SIZE_BYTES,
+
+    allocationMethod:
+      "CONTIGUOUS",
+
+    requiredDataBlocks:
+      blockCount,
+
+    totalPhysicalBlocks:
+      blockCount,
+
+    usableBytesPerDataBlock:
+      BLOCK_SIZE_BYTES,
+
+    startBlock:
+      definition.startBlock,
+
+    endBlock:
+      definition.endBlock,
+
+    indexBlock:
+      null,
+
+    dataBlocks:
+      dataBlocks
+
+  };
+
+
+  allocatedFiles.push(
+    file
+  );
+
+}
+
+
+
+/*
+  ==================================================
   RESET
-  --------------------------------------------------
+  ==================================================
 */
 
 function resetSimulator() {
@@ -1228,6 +1440,10 @@ function resetSimulator() {
   allocatedFiles = [];
 
 
+  selectedBlockId =
+    null;
+
+
   allocationResult.className =
     "result-box";
 
@@ -1236,8 +1452,12 @@ function resetSimulator() {
     "Simulator reset.";
 
 
+  blockDetails.textContent =
+    "Click a block to inspect it.";
+
+
   fcbPanel.textContent =
-    "No allocated file selected.";
+    "No file selected.";
 
 
   renderEverything();
@@ -1247,9 +1467,9 @@ function resetSimulator() {
 
 
 /*
-  --------------------------------------------------
-  RENDER ALL
-  --------------------------------------------------
+  ==================================================
+  RENDER
+  ==================================================
 */
 
 function renderEverything() {
@@ -1267,9 +1487,9 @@ function renderEverything() {
 
 
 /*
-  --------------------------------------------------
+  ==================================================
   EVENTS
-  --------------------------------------------------
+  ==================================================
 */
 
 fileSelect.addEventListener(
@@ -1306,7 +1526,7 @@ allocateButton.addEventListener(
 
 fragmentButton.addEventListener(
   "click",
-  loadFragmentationScenario
+  loadFragmentedDisk
 );
 
 
@@ -1318,9 +1538,9 @@ resetButton.addEventListener(
 
 
 /*
-  --------------------------------------------------
+  ==================================================
   INITIALIZE
-  --------------------------------------------------
+  ==================================================
 */
 
 populateFileSelect();
