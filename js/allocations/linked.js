@@ -33,8 +33,8 @@ export function allocateLinked(
       freeBlocks:
         freeBlocks.length,
 
-      reason:
-        "Not enough free blocks are available."
+      message:
+        "Not enough free blocks."
 
     };
 
@@ -42,78 +42,19 @@ export function allocateLinked(
 
 
   /*
-    For better visualization,
-    do not always choose blocks
-    immediately next to each other.
+    Linked Allocation does not
+    REQUIRE consecutive blocks.
 
-    We first take alternating
-    free blocks when possible.
+    The simulator simply uses
+    available blocks supplied by
+    the free-space list.
   */
 
-  const selectedBlocks = [];
-
-  let index = 0;
-
-
-  while (
-    selectedBlocks.length < needed &&
-    index < freeBlocks.length
-  ) {
-
-    selectedBlocks.push(
-      freeBlocks[index]
+  const selectedBlocks =
+    freeBlocks.slice(
+      0,
+      needed
     );
-
-    index += 2;
-
-  }
-
-
-  /*
-    If alternating blocks were
-    not enough, fill from the
-    remaining FREE blocks.
-  */
-
-  if (
-    selectedBlocks.length < needed
-  ) {
-
-    for (
-      let i = 0;
-      i < freeBlocks.length;
-      i++
-    ) {
-
-      const block =
-        freeBlocks[i];
-
-
-      if (
-        !selectedBlocks.includes(
-          block
-        )
-      ) {
-
-        selectedBlocks.push(
-          block
-        );
-
-      }
-
-
-      if (
-        selectedBlocks.length ===
-        needed
-      ) {
-
-        break;
-
-      }
-
-    }
-
-  }
 
 
   selectedBlocks.forEach(
@@ -140,7 +81,9 @@ export function allocateLinked(
             position + 1
           ].id;
 
-      } else {
+      }
+
+      else {
 
         block.nextBlock = null;
 
