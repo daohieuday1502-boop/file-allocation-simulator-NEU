@@ -6,16 +6,7 @@ export const POINTER_SIZE_BYTES = 4;
 
 
 /*
-  Create Virtual Disk.
-
-  Each block stores:
-  - id
-  - FREE / USED
-  - owner
-  - allocation method
-  - DATA / INDEX
-  - next pointer for Linked
-  - index entries for Indexed
+  Create Virtual Disk
 */
 
 export function createDisk(
@@ -55,7 +46,7 @@ export function createDisk(
 
 
 /*
-  Return all FREE blocks.
+  Return all FREE blocks
 */
 
 export function getFreeBlocks(disk) {
@@ -69,7 +60,7 @@ export function getFreeBlocks(disk) {
 
 
 /*
-  Count FREE blocks.
+  Count FREE blocks
 */
 
 export function countFreeBlocks(disk) {
@@ -80,8 +71,8 @@ export function countFreeBlocks(disk) {
 
 
 /*
-  Find the largest sequence of
-  consecutive FREE blocks.
+  Find the longest sequence
+  of consecutive FREE blocks
 */
 
 export function getLargestFreeBlockSequence(
@@ -95,12 +86,16 @@ export function getLargestFreeBlockSequence(
 
   disk.forEach((block) => {
 
-    if (block.status === "FREE") {
+    if (
+      block.status === "FREE"
+    ) {
 
       currentLength++;
 
+
       if (
-        currentLength > largestLength
+        currentLength >
+        largestLength
       ) {
 
         largestLength =
@@ -108,7 +103,9 @@ export function getLargestFreeBlockSequence(
 
       }
 
-    } else {
+    }
+
+    else {
 
       currentLength = 0;
 
@@ -118,12 +115,13 @@ export function getLargestFreeBlockSequence(
 
 
   return largestLength;
+
 }
 
 
 /*
-  Release all blocks belonging
-  to one file.
+  Release all blocks
+  belonging to a file
 */
 
 export function releaseFile(
@@ -133,117 +131,30 @@ export function releaseFile(
 
   disk.forEach((block) => {
 
-    if (block.fileId === fileId) {
+    if (
+      block.fileId === fileId
+    ) {
 
-      block.status = "FREE";
+      block.status =
+        "FREE";
 
-      block.fileId = null;
+      block.fileId =
+        null;
 
-      block.allocationMethod = null;
+      block.allocationMethod =
+        null;
 
-      block.kind = null;
+      block.kind =
+        null;
 
-      block.nextBlock = null;
+      block.nextBlock =
+        null;
 
-      block.indexEntries = [];
+      block.indexEntries =
+        [];
 
     }
 
   });
-
-}
-
-
-/*
-  Prepare a fragmented disk.
-
-  Existing files occupy several
-  separated areas.
-
-  Free regions are intentionally
-  kept small.
-
-  This allows Contiguous Allocation
-  to fail even when total FREE blocks
-  are sufficient.
-*/
-
-export function createFragmentationScenario(
-  disk
-) {
-
-  /*
-    First reset every block.
-  */
-
-  disk.forEach((block) => {
-
-    block.status = "FREE";
-
-    block.fileId = null;
-
-    block.allocationMethod = null;
-
-    block.kind = null;
-
-    block.nextBlock = null;
-
-    block.indexEntries = [];
-
-  });
-
-
-  /*
-    USED ranges.
-
-    They create FREE gaps of around
-    4-6 blocks rather than one large
-    free area.
-  */
-
-  const usedRanges = [
-
-    [0, 7],
-
-    [13, 20],
-
-    [26, 34],
-
-    [40, 47],
-
-    [53, 61],
-
-    [67, 74],
-
-    [80, 88],
-
-    [94, 99]
-
-  ];
-
-
-  usedRanges.forEach(
-    ([start, end], rangeIndex) => {
-
-      for (
-        let i = start;
-        i <= end;
-        i++
-      ) {
-
-        disk[i].status = "USED";
-
-        disk[i].fileId =
-          `OLD-${rangeIndex + 1}`;
-
-        disk[i].allocationMethod =
-          "SCENARIO";
-
-        disk[i].kind = "DATA";
-
-      }
-
-    }
-  );
 
 }
