@@ -12,7 +12,7 @@ import {
 
   countFreeBlocks,
 
-  getLargestContiguousFreeRegion
+  getLargestFreeBlockSequence
 
 } from "./core/disk.js";
 
@@ -997,7 +997,7 @@ function renderDiskStats() {
 
 
   const largestRegion =
-    getLargestContiguousFreeRegion(
+    getLargestFreeBlockSequence(
       disk
     );
 
@@ -1313,7 +1313,7 @@ function loadFragmentedDisk() {
     `FRAGMENTED DISK LOADED
 Files on disk: ${SCENARIO_FILES.length}
 Free blocks: ${countFreeBlocks(disk)}
-Largest contiguous free region: ${getLargestContiguousFreeRegion(disk)} blocks`;
+Largest contiguous free region: ${getLargestFreeBlockSequence(disk)} blocks`;
 
 
   blockDetails.textContent =
