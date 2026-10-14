@@ -118,17 +118,6 @@ const TEST_FILES = [
   ==================================================
   FRAGMENTED DISK SCENARIO
   ==================================================
-
-  These are actual simulated files.
-
-  Each one already occupies a
-  contiguous region.
-
-  The gaps between files represent
-  free regions created by previous
-  file deletion / disk usage.
-
-  Largest free region = 5 blocks.
 */
 
 const SCENARIO_FILES = [
@@ -303,6 +292,10 @@ const fileList =
 
 function populateFileSelect() {
 
+  fileSelect.innerHTML =
+    "";
+
+
   TEST_FILES.forEach((file) => {
 
     const option =
@@ -363,6 +356,16 @@ function showSelectedFileInfo() {
     getSelectedFileDefinition();
 
 
+  if (!definition) {
+
+    fileInfo.textContent =
+      "No file selected.";
+
+    return;
+
+  }
+
+
   fileInfo.textContent =
     `File ID: ${definition.id}
 File name: ${definition.name}
@@ -382,6 +385,16 @@ function showStorageRequirement() {
 
   const definition =
     getSelectedFileDefinition();
+
+
+  if (!definition) {
+
+    storageRequirement.textContent =
+      "No file selected.";
+
+    return;
+
+  }
 
 
   const file =
@@ -469,6 +482,17 @@ function allocateSelectedFile() {
 
   const definition =
     getSelectedFileDefinition();
+
+
+  if (!definition) {
+
+    showSimpleFailure(
+      "No file selected."
+    );
+
+    return;
+
+  }
 
 
   const alreadyExists =
@@ -603,7 +627,9 @@ function showAllocationResult(
     "result-box";
 
 
-  if (result.success) {
+  if (
+    result.success
+  ) {
 
     allocationResult.classList.add(
       "result-success"
@@ -643,8 +669,8 @@ Method: ${result.method}`;
       `
 Required blocks: ${result.requiredBlocks}
 Free blocks: ${result.freeBlocks}
-Largest contiguous region: ${result.largestContiguousRegion}
-No suitable contiguous region. Disk unchanged.`;
+Largest free block sequence: ${result.largestFreeBlockSequence}
+No suitable continuous free block sequence. Disk unchanged.`;
 
   }
 
@@ -770,7 +796,8 @@ function renderDisk() {
       ) {
 
         if (
-          block.kind === "INDEX"
+          block.kind ===
+          "INDEX"
         ) {
 
           blockElement.classList.add(
@@ -833,7 +860,9 @@ function renderDisk() {
     blockElement.addEventListener(
       "click",
       () =>
-        selectBlock(block.id)
+        selectBlock(
+          block.id
+        )
     );
 
 
@@ -867,11 +896,6 @@ function selectBlock(blockId) {
     block
   );
 
-
-  /*
-    If this block belongs to a file,
-    show that file's FCB.
-  */
 
   if (
     block.fileId !== null
@@ -909,7 +933,9 @@ function selectBlock(blockId) {
 
 
 
-function renderBlockDetails(block) {
+function renderBlockDetails(
+  block
+) {
 
   let text =
     `Block ID: ${block.id}
@@ -917,7 +943,8 @@ Status: ${block.status}`;
 
 
   if (
-    block.status === "FREE"
+    block.status ===
+    "FREE"
   ) {
 
     blockDetails.textContent =
@@ -958,7 +985,8 @@ Next block: ${block.nextBlock}`;
 
 
   if (
-    block.kind === "INDEX"
+    block.kind ===
+    "INDEX"
   ) {
 
     text +=
@@ -987,7 +1015,8 @@ function renderDiskStats() {
     disk.filter(
 
       (block) =>
-        block.status === "USED"
+        block.status ===
+        "USED"
 
     ).length;
 
@@ -996,7 +1025,7 @@ function renderDiskStats() {
     TOTAL_BLOCKS - used;
 
 
-  const largestRegion =
+  const largestSequence =
     getLargestFreeBlockSequence(
       disk
     );
@@ -1008,7 +1037,7 @@ Block size: ${BLOCK_SIZE_BYTES} bytes
 Disk capacity: ${TOTAL_BLOCKS * BLOCK_SIZE_BYTES} bytes
 Used blocks: ${used}
 Free blocks: ${free}
-Largest contiguous free region: ${largestRegion} blocks`;
+Largest free block sequence: ${largestSequence} blocks`;
 
 }
 
@@ -1026,7 +1055,8 @@ function renderFreeSpaceBitmap() {
     disk.map(
 
       (block) =>
-        block.status === "FREE"
+        block.status ===
+        "FREE"
           ? "1"
           : "0"
 
@@ -1045,7 +1075,10 @@ function renderFreeSpaceBitmap() {
     rows.push(
 
       bits
-        .slice(i, i + 20)
+        .slice(
+          i,
+          i + 20
+        )
         .join(" ")
 
     );
@@ -1133,7 +1166,8 @@ function renderFileList() {
 
 
   if (
-    allocatedFiles.length === 0
+    allocatedFiles.length ===
+    0
   ) {
 
     fileList.textContent =
@@ -1189,7 +1223,9 @@ ${file.allocationMethod} — ${file.totalPhysicalBlocks} block(s)`;
       deleteButton.addEventListener(
         "click",
         () =>
-          deleteFile(file.id)
+          deleteFile(
+            file.id
+          )
       );
 
 
@@ -1220,13 +1256,16 @@ ${file.allocationMethod} — ${file.totalPhysicalBlocks} block(s)`;
   ==================================================
 */
 
-function deleteFile(fileId) {
+function deleteFile(
+  fileId
+) {
 
   const file =
     allocatedFiles.find(
 
       (item) =>
-        item.id === fileId
+        item.id ===
+        fileId
 
     );
 
@@ -1241,7 +1280,8 @@ function deleteFile(fileId) {
     allocatedFiles.filter(
 
       (item) =>
-        item.id !== fileId
+        item.id !==
+        fileId
 
     );
 
@@ -1287,7 +1327,8 @@ function loadFragmentedDisk() {
     );
 
 
-  allocatedFiles = [];
+  allocatedFiles =
+    [];
 
 
   selectedBlockId =
@@ -1313,7 +1354,7 @@ function loadFragmentedDisk() {
     `FRAGMENTED DISK LOADED
 Files on disk: ${SCENARIO_FILES.length}
 Free blocks: ${countFreeBlocks(disk)}
-Largest contiguous free region: ${getLargestFreeBlockSequence(disk)} blocks`;
+Largest free block sequence: ${getLargestFreeBlockSequence(disk)} blocks`;
 
 
   blockDetails.textContent =
@@ -1331,8 +1372,7 @@ Largest contiguous free region: ${getLargestFreeBlockSequence(disk)} blocks`;
 
 
 /*
-  Add one real simulated file
-  into the fragmented disk snapshot.
+  Add one simulated existing file
 */
 
 function addScenarioFile(
@@ -1345,7 +1385,8 @@ function addScenarioFile(
     1;
 
 
-  const dataBlocks = [];
+  const dataBlocks =
+    [];
 
 
   for (
@@ -1437,7 +1478,8 @@ function resetSimulator() {
     );
 
 
-  allocatedFiles = [];
+  allocatedFiles =
+    [];
 
 
   selectedBlockId =
@@ -1468,7 +1510,7 @@ function resetSimulator() {
 
 /*
   ==================================================
-  RENDER
+  RENDER ALL
   ==================================================
 */
 
