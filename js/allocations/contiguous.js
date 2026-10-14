@@ -1,6 +1,6 @@
 import {
   countFreeBlocks,
-  getLargestContiguousFreeRegion
+  getLargestFreeBlockSequence
 } from "../core/disk.js";
 
 
@@ -19,7 +19,7 @@ export function allocateContiguous(
 
 
   const largestRegion =
-    getLargestContiguousFreeRegion(
+    getLargestFreeBlockSequence(
       disk
     );
 
