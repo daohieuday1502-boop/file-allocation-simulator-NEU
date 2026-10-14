@@ -25,11 +25,13 @@ export function allocateContiguous(
 
 
   /*
-    First check whether a large enough
-    consecutive FREE region exists.
+    Fail if no sufficiently large
+    consecutive FREE region exists
   */
 
-  if (largestRegion < needed) {
+  if (
+    largestRegion < needed
+  ) {
 
     return {
 
@@ -37,15 +39,14 @@ export function allocateContiguous(
 
       method: "CONTIGUOUS",
 
-      requiredBlocks: needed,
+      requiredBlocks:
+        needed,
 
-      freeBlocks: totalFreeBlocks,
+      freeBlocks:
+        totalFreeBlocks,
 
-      largestContiguousRegion:
-        largestRegion,
-
-      reason:
-        "No contiguous free region is large enough."
+      largestFreeBlockSequence:
+        largestRegion
 
     };
 
@@ -57,6 +58,11 @@ export function allocateContiguous(
   let runLength = 0;
 
 
+  /*
+    Find first sufficiently large
+    consecutive FREE region
+  */
+
   for (
     let i = 0;
     i < disk.length;
@@ -67,11 +73,14 @@ export function allocateContiguous(
       disk[i].status === "FREE"
     ) {
 
-      if (runLength === 0) {
+      if (
+        runLength === 0
+      ) {
 
         runStart = i;
 
       }
+
 
       runLength++;
 
@@ -84,7 +93,9 @@ export function allocateContiguous(
 
       }
 
-    } else {
+    }
+
+    else {
 
       runStart = -1;
 
@@ -98,13 +109,18 @@ export function allocateContiguous(
   const allocatedBlocks = [];
 
 
+  /*
+    Allocate blocks
+  */
+
   for (
     let i = runStart;
     i < runStart + needed;
     i++
   ) {
 
-    disk[i].status = "USED";
+    disk[i].status =
+      "USED";
 
     disk[i].fileId =
       file.id;
@@ -112,13 +128,24 @@ export function allocateContiguous(
     disk[i].allocationMethod =
       "CONTIGUOUS";
 
-    disk[i].kind = "DATA";
+    disk[i].kind =
+      "DATA";
+
+    disk[i].nextBlock =
+      null;
+
+    disk[i].indexEntries =
+      [];
 
 
     allocatedBlocks.push(i);
 
   }
 
+
+  /*
+    Update file metadata
+  */
 
   file.allocationMethod =
     "CONTIGUOUS";
@@ -138,6 +165,9 @@ export function allocateContiguous(
   file.endBlock =
     runStart + needed - 1;
 
+  file.indexBlock =
+    null;
+
   file.dataBlocks =
     allocatedBlocks;
 
@@ -149,10 +179,7 @@ export function allocateContiguous(
     method: "CONTIGUOUS",
 
     allocatedBlocks:
-      allocatedBlocks,
-
-    message:
-      "Contiguous allocation completed successfully."
+      allocatedBlocks
 
   };
 
