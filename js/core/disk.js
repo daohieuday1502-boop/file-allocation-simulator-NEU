@@ -84,7 +84,7 @@ export function countFreeBlocks(disk) {
   consecutive FREE blocks.
 */
 
-export function getLargestContiguousFreeRegion(
+export function getLargestFreeBlockSequence(
   disk
 ) {
 
