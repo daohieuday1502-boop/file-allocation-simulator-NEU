@@ -3,184 +3,67 @@ import {
   getLargestFreeBlockSequence
 } from "../core/disk.js";
 
+export function allocateContiguous(file, disk, requirement) {
+  const needed = requirement.requiredDataBlocks;
+  const freeBlocks = countFreeBlocks(disk);
+  const largestRegion = getLargestFreeBlockSequence(disk);
 
-export function allocateContiguous(
-  file,
-  disk,
-  requirement
-) {
-
-  const needed =
-    requirement.requiredDataBlocks;
-
-
-  const totalFreeBlocks =
-    countFreeBlocks(disk);
-
-
-  const largestRegion =
-    getLargestFreeBlockSequence(
-      disk
-    );
-
-
-  /*
-    Fail if no sufficiently large
-    consecutive FREE region exists
-  */
-
-  if (
-    largestRegion < needed
-  ) {
-
+  if (largestRegion < needed) {
     return {
-
       success: false,
-
       method: "CONTIGUOUS",
-
-      requiredBlocks:
-        needed,
-
-      freeBlocks:
-        totalFreeBlocks,
-
-      largestFreeBlockSequence:
-        largestRegion
-
+      requiredBlocks: needed,
+      freeBlocks,
+      largestFreeBlockSequence: largestRegion
     };
-
   }
-
 
   let runStart = -1;
-
   let runLength = 0;
 
-
-  /*
-    Find first sufficiently large
-    consecutive FREE region
-  */
-
-  for (
-    let i = 0;
-    i < disk.length;
-    i++
-  ) {
-
-    if (
-      disk[i].status === "FREE"
-    ) {
-
-      if (
-        runLength === 0
-      ) {
-
-        runStart = i;
-
-      }
-
-
-      runLength++;
-
-
-      if (
-        runLength === needed
-      ) {
-
-        break;
-
-      }
-
-    }
-
-    else {
-
+  for (let i = 0; i < disk.length; i++) {
+    if (disk[i].status !== "FREE") {
       runStart = -1;
-
       runLength = 0;
-
+      continue;
     }
 
-  }
+    if (runLength === 0) {
+      runStart = i;
+    }
 
+    runLength++;
+    if (runLength === needed) {
+      break;
+    }
+  }
 
   const allocatedBlocks = [];
 
-
-  /*
-    Allocate blocks
-  */
-
-  for (
-    let i = runStart;
-    i < runStart + needed;
-    i++
-  ) {
-
-    disk[i].status =
-      "USED";
-
-    disk[i].fileId =
-      file.id;
-
-    disk[i].allocationMethod =
-      "CONTIGUOUS";
-
-    disk[i].kind =
-      "DATA";
-
-    disk[i].nextBlock =
-      null;
-
-    disk[i].indexEntries =
-      [];
-
-
+  for (let i = runStart; i < runStart + needed; i++) {
+    disk[i].status = "USED";
+    disk[i].fileId = file.id;
+    disk[i].allocationMethod = "CONTIGUOUS";
+    disk[i].kind = "DATA";
+    disk[i].nextBlock = null;
+    disk[i].indexEntries = [];
     allocatedBlocks.push(i);
-
   }
 
-
-  /*
-    Update file metadata
-  */
-
-  file.allocationMethod =
-    "CONTIGUOUS";
-
-  file.requiredDataBlocks =
-    needed;
-
-  file.totalPhysicalBlocks =
-    requirement.totalPhysicalBlocks;
-
-  file.usableBytesPerDataBlock =
-    requirement.usableBytesPerDataBlock;
-
-  file.startBlock =
-    runStart;
-
-  file.endBlock =
-    runStart + needed - 1;
-
-  file.indexBlock =
-    null;
-
-  file.dataBlocks =
-    allocatedBlocks;
-
+  Object.assign(file, {
+    allocationMethod: "CONTIGUOUS",
+    requiredDataBlocks: needed,
+    totalPhysicalBlocks: requirement.totalPhysicalBlocks,
+    usableBytesPerDataBlock: requirement.usableBytesPerDataBlock,
+    startBlock: runStart,
+    endBlock: runStart + needed - 1,
+    indexBlock: null,
+    dataBlocks: allocatedBlocks
+  });
 
   return {
-
     success: true,
-
     method: "CONTIGUOUS",
-
-    allocatedBlocks:
-      allocatedBlocks
-
+    allocatedBlocks
   };
-
 }
