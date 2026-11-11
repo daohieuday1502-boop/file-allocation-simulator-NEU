@@ -1,160 +1,57 @@
 export const TOTAL_BLOCKS = 100;
-
 export const BLOCK_SIZE_BYTES = 4096;
-
 export const POINTER_SIZE_BYTES = 4;
 
+function createBlock(id) {
+  return {
+    id,
+    status: "FREE",
+    fileId: null,
+    allocationMethod: null,
+    kind: null,
+    nextBlock: null,
+    indexEntries: []
+  };
+}
 
-/*
-  Create Virtual Disk
-*/
-
-export function createDisk(
-  numberOfBlocks = TOTAL_BLOCKS
-) {
-
+export function createDisk(numberOfBlocks = TOTAL_BLOCKS) {
   const blocks = [];
 
-  for (
-    let i = 0;
-    i < numberOfBlocks;
-    i++
-  ) {
-
-    blocks.push({
-
-      id: i,
-
-      status: "FREE",
-
-      fileId: null,
-
-      allocationMethod: null,
-
-      kind: null,
-
-      nextBlock: null,
-
-      indexEntries: []
-
-    });
-
+  for (let id = 0; id < numberOfBlocks; id++) {
+    blocks.push(createBlock(id));
   }
 
   return blocks;
 }
 
-
-/*
-  Return all FREE blocks
-*/
-
 export function getFreeBlocks(disk) {
-
-  return disk.filter(
-    (block) =>
-      block.status === "FREE"
-  );
-
+  return disk.filter((block) => block.status === "FREE");
 }
-
-
-/*
-  Count FREE blocks
-*/
 
 export function countFreeBlocks(disk) {
-
   return getFreeBlocks(disk).length;
-
 }
 
-
-/*
-  Find the longest sequence
-  of consecutive FREE blocks
-*/
-
-export function getLargestFreeBlockSequence(
-  disk
-) {
-
+export function getLargestFreeBlockSequence(disk) {
   let currentLength = 0;
-
   let largestLength = 0;
 
-
   disk.forEach((block) => {
-
-    if (
-      block.status === "FREE"
-    ) {
-
+    if (block.status === "FREE") {
       currentLength++;
-
-
-      if (
-        currentLength >
-        largestLength
-      ) {
-
-        largestLength =
-          currentLength;
-
-      }
-
-    }
-
-    else {
-
+      largestLength = Math.max(largestLength, currentLength);
+    } else {
       currentLength = 0;
-
     }
-
   });
-
 
   return largestLength;
-
 }
 
-
-/*
-  Release all blocks
-  belonging to a file
-*/
-
-export function releaseFile(
-  disk,
-  fileId
-) {
-
+export function releaseFile(disk, fileId) {
   disk.forEach((block) => {
-
-    if (
-      block.fileId === fileId
-    ) {
-
-      block.status =
-        "FREE";
-
-      block.fileId =
-        null;
-
-      block.allocationMethod =
-        null;
-
-      block.kind =
-        null;
-
-      block.nextBlock =
-        null;
-
-      block.indexEntries =
-        [];
-
+    if (block.fileId === fileId) {
+      Object.assign(block, createBlock(block.id));
     }
-
   });
-
 }
